@@ -22,6 +22,14 @@ function buildMapHtml(location: { lat: number; lng: number }, events: any[]) {
       L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {maxZoom: 19}).addTo(map);
       L.circleMarker([${location.lat}, ${location.lng}], {radius:8,color:'#2563eb',fillColor:'#2563eb',fillOpacity:1}).addTo(map).bindPopup('You are here');
       ${markersJs}
+      var pickMarker = null;
+      map.on('click', function(e){
+        if (pickMarker) { map.removeLayer(pickMarker); }
+        pickMarker = L.marker(e.latlng).addTo(map);
+        if (window.ReactNativeWebView) {
+          window.ReactNativeWebView.postMessage(JSON.stringify({type:'mapclick', lat:e.latlng.lat, lng:e.latlng.lng}));
+        }
+      });
     </script></body></html>
   `;
 }
@@ -121,7 +129,21 @@ export default function MapScreen() {
           source={{ html: mapHtml }}
           style={{ flex: 1 }}
           scrollEnabled={false}
+          onMessage={(ev) => {
+            try {
+              const msg = JSON.parse(ev.nativeEvent.data);
+              if (msg.type === 'mapclick') {
+                Alert.alert('Создать событие здесь?', 'Поставим событие в выбранной точке на карте.', [
+                  { text: 'Отмена', style: 'cancel' },
+                  { text: 'Создать', onPress: () => router.push(`/create?lat=${msg.lat}&lng=${msg.lng}` as any) },
+                ]);
+              }
+            } catch (e) {}
+          }}
         />
+        <View style={styles.mapHint} pointerEvents="none">
+          <Text style={styles.mapHintTxt}>👆 Нажми на карту, чтобы создать здесь</Text>
+        </View>
       </View>
 
       <View style={styles.statsBar}>
@@ -195,6 +217,8 @@ const styles = StyleSheet.create({
   loadingTxt: { color: '#F5C400', fontSize: 16, fontWeight: '600' },
   container: { flex: 1, backgroundColor: '#FAFAF7' },
   mapWrap: { height: 240, marginHorizontal: 12, marginTop: 52, borderRadius: 16, overflow: 'hidden', backgroundColor: '#e5e5df' },
+  mapHint: { position: 'absolute', bottom: 10, alignSelf: 'center', backgroundColor: 'rgba(17,17,16,0.82)', paddingHorizontal: 12, paddingVertical: 6, borderRadius: 16 },
+  mapHintTxt: { color: '#fff', fontSize: 12, fontWeight: '600', textAlign: 'center' },
   statsBar: { flexDirection: 'row', marginHorizontal: 12, marginTop: 10, backgroundColor: '#fff', borderRadius: 12, borderWidth: 1, borderColor: '#E5E5DF', overflow: 'hidden' },
   stat: { flex: 1, padding: 10, alignItems: 'center', borderRightWidth: 1, borderRightColor: '#E5E5DF' },
   statNum: { fontSize: 18, fontWeight: '800', color: '#111' },

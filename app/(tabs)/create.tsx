@@ -1,6 +1,8 @@
 import * as Location from 'expo-location';
-import { useState } from 'react';
-import { ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import { useLocalSearchParams } from 'expo-router';
+import { useEffect, useState } from 'react';
+import { ActivityIndicator, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import { geocodeAddress, reverseGeocode } from '../lib/geocode';
 import { supabase } from '../lib/supabase';
 
 const CATEGORIES = [
@@ -15,6 +17,7 @@ const CATEGORIES = [
 ];
 
 export default function CreateScreen() {
+  const params = useLocalSearchParams<{ lat?: string; lng?: string }>();
   const [mode, setMode] = useState<'now' | 'later'>('now');
   const [title, setTitle] = useState('');
   const [category, setCategory] = useState('');
@@ -22,29 +25,51 @@ export default function CreateScreen() {
   const [maxPeople, setMaxPeople] = useState('6');
   const [created, setCreated] = useState(false);
   const [saving, setSaving] = useState(false);
+  // Exact point picked on the map (if the user arrived by tapping the map).
+  const [pinned, setPinned] = useState<{ lat: number; lng: number } | null>(null);
+  const [addrEdited, setAddrEdited] = useState(false);
+  const [resolvingAddr, setResolvingAddr] = useState(false);
 
   const categoryEmoji: Record<string, string> = { Sport: '⚽', Music: '🎸', Food: '🍕', Games: '🎲', Health: '🧘', Photo: '📸', Pets: '🐕', Books: '📚' };
+
+  // Arrived from a map tap → pin the exact spot and prefill its address.
+  useEffect(() => {
+    const la = params.lat ? parseFloat(params.lat) : NaN;
+    const ln = params.lng ? parseFloat(params.lng) : NaN;
+    if (!isNaN(la) && !isNaN(ln)) {
+      setPinned({ lat: la, lng: ln });
+      setAddrEdited(false);
+      setResolvingAddr(true);
+      (async () => {
+        const addr = await reverseGeocode(la, ln);
+        if (addr) setPlace(addr);
+        setResolvingAddr(false);
+      })();
+    }
+  }, [params.lat, params.lng]);
 
   const publishEvent = async () => {
     setSaving(true);
     let lat = 12.9236, lng = 100.8825;
-    let located = false;
-    // 1. Geocode the typed address — the event should sit where the user said, not where they stand.
-    try {
-      const results = await Location.geocodeAsync(place.trim());
-      if (results && results.length > 0) {
-        lat = results[0].latitude; lng = results[0].longitude; located = true;
+    if (pinned && !addrEdited) {
+      // Exact point picked on the map — pin there.
+      lat = pinned.lat; lng = pinned.lng;
+    } else {
+      // Geocode the typed address so the event sits where the user said.
+      const geo = await geocodeAddress(place);
+      if (geo) {
+        lat = geo.lat; lng = geo.lng;
+      } else if (pinned) {
+        lat = pinned.lat; lng = pinned.lng;
+      } else {
+        try {
+          const { status } = await Location.requestForegroundPermissionsAsync();
+          if (status === 'granted') {
+            const loc = await Location.getCurrentPositionAsync({});
+            lat = loc.coords.latitude; lng = loc.coords.longitude;
+          }
+        } catch (e) {}
       }
-    } catch (e) {}
-    // 2. Fall back to the creator's current location only if the address couldn't be resolved.
-    if (!located) {
-      try {
-        const { status } = await Location.requestForegroundPermissionsAsync();
-        if (status === 'granted') {
-          const loc = await Location.getCurrentPositionAsync({});
-          lat = loc.coords.latitude; lng = loc.coords.longitude;
-        }
-      } catch (e) {}
     }
     try {
       const { data: ev } = await supabase.from('events').insert({
@@ -62,7 +87,7 @@ export default function CreateScreen() {
     setSaving(false);
   };
 
-  const canCreate = title.length > 2 && category && place.length > 2;
+  const canCreate = title.length > 2 && category && (place.length > 2 || !!pinned);
 
   if (created) {
     return (
@@ -70,7 +95,7 @@ export default function CreateScreen() {
         <Text style={styles.successEmoji}>🎉</Text>
         <Text style={styles.successTitle}>Event Created!</Text>
         <Text style={styles.successSub}>People nearby will see your event on the map right now</Text>
-        <TouchableOpacity style={styles.successBtn} onPress={() => { setCreated(false); setTitle(''); setCategory(''); setPlace(''); }}>
+        <TouchableOpacity style={styles.successBtn} onPress={() => { setCreated(false); setTitle(''); setCategory(''); setPlace(''); setPinned(null); setAddrEdited(false); }}>
           <Text style={styles.successBtnTxt}>Create Another →</Text>
         </TouchableOpacity>
       </View>
@@ -139,8 +164,18 @@ export default function CreateScreen() {
             placeholder="📍 Address or place name"
             placeholderTextColor="#aaa"
             value={place}
-            onChangeText={setPlace}
+            onChangeText={(v) => { setPlace(v); setAddrEdited(true); }}
           />
+          {resolvingAddr ? (
+            <View style={styles.locHintRow}>
+              <ActivityIndicator size="small" color="#888" />
+              <Text style={styles.locHint}>Определяем адрес точки…</Text>
+            </View>
+          ) : pinned && !addrEdited ? (
+            <Text style={styles.locHint}>📍 Точка выбрана на карте — событие закрепится здесь</Text>
+          ) : (
+            <Text style={styles.locHint}>Введи адрес — событие встанет на карте по нему</Text>
+          )}
         </View>
 
         {/* Max people */}
@@ -203,6 +238,8 @@ const styles = StyleSheet.create({
   modeTxtOn: { color: '#F5C400' },
   field: { marginBottom: 20 },
   label: { fontSize: 11, fontWeight: '700', color: '#888', letterSpacing: 0.5, marginBottom: 8 },
+  locHint: { fontSize: 12, color: '#888', marginTop: 6 },
+  locHintRow: { flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 6 },
   input: { backgroundColor: '#fff', borderWidth: 1.5, borderColor: '#E5E5DF', borderRadius: 12, padding: 14, fontSize: 15, color: '#111' },
   catGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
   catBtn: { paddingHorizontal: 14, paddingVertical: 10, borderRadius: 12, borderWidth: 1.5, borderColor: '#E5E5DF', backgroundColor: '#fff', alignItems: 'center', gap: 4, minWidth: 72 },
