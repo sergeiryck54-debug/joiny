@@ -28,18 +28,35 @@ export default function CreateScreen() {
   const publishEvent = async () => {
     setSaving(true);
     let lat = 12.9236, lng = 100.8825;
+    let located = false;
+    // 1. Geocode the typed address — the event should sit where the user said, not where they stand.
     try {
-      const { status } = await Location.requestForegroundPermissionsAsync();
-      if (status === 'granted') {
-        const loc = await Location.getCurrentPositionAsync({});
-        lat = loc.coords.latitude; lng = loc.coords.longitude;
+      const results = await Location.geocodeAsync(place.trim());
+      if (results && results.length > 0) {
+        lat = results[0].latitude; lng = results[0].longitude; located = true;
       }
     } catch (e) {}
+    // 2. Fall back to the creator's current location only if the address couldn't be resolved.
+    if (!located) {
+      try {
+        const { status } = await Location.requestForegroundPermissionsAsync();
+        if (status === 'granted') {
+          const loc = await Location.getCurrentPositionAsync({});
+          lat = loc.coords.latitude; lng = loc.coords.longitude;
+        }
+      } catch (e) {}
+    }
     try {
-      await supabase.from('events').insert({
+      const { data: ev } = await supabase.from('events').insert({
         title, category, emoji: categoryEmoji[category] || '📍',
+        location: place.trim(),
         lat, lng, people: 1, max_people: parseInt(maxPeople), is_now: mode === 'now',
-      });
+      }).select('id').single();
+      // Auto-join the creator so people count matches participants.
+      const { data: { user } } = await supabase.auth.getUser();
+      if (ev?.id && user) {
+        await supabase.from('event_participants').insert({ event_id: ev.id, user_id: user.id });
+      }
       setCreated(true);
     } catch (e) {}
     setSaving(false);

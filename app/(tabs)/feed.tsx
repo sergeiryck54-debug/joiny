@@ -18,13 +18,22 @@ export default function FeedScreen() {
     } catch (e) {}
   };
 
+  const fetchMyLikes = async () => {
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) { setLiked([]); return; }
+      const { data } = await supabase.from('post_likes').select('post_id').eq('user_id', user.id);
+      if (data) setLiked(data.map((r: any) => r.post_id));
+    } catch (e) {}
+  };
+
   useEffect(() => {
-    (async () => { await fetchPosts(); setLoading(false); })();
+    (async () => { await Promise.all([fetchPosts(), fetchMyLikes()]); setLoading(false); })();
   }, []);
 
   const onRefresh = async () => {
     setRefreshing(true);
-    await fetchPosts();
+    await Promise.all([fetchPosts(), fetchMyLikes()]);
     setRefreshing(false);
   };
 
@@ -50,8 +59,30 @@ export default function FeedScreen() {
     setPosting(false);
   };
 
-  const toggleLike = (id: string) => {
-    setLiked(prev => prev.includes(id) ? prev.filter(i => i !== id) : [...prev, id]);
+  const toggleLike = async (id: string) => {
+    const wasLiked = liked.includes(id);
+    // Optimistic update
+    setLiked(prev => wasLiked ? prev.filter(i => i !== id) : [...prev, id]);
+    setPosts(prev => prev.map(p => p.id === id ? { ...p, likes: Math.max(0, (p.likes || 0) + (wasLiked ? -1 : 1)) } : p));
+    try {
+      const { data, error } = await supabase.rpc('toggle_like', { p_post_id: id });
+      if (error) throw error;
+      const row = Array.isArray(data) ? data[0] : data;
+      if (row) {
+        // Reconcile with server truth
+        setPosts(prev => prev.map(p => p.id === id ? { ...p, likes: row.likes } : p));
+        setLiked(prev => {
+          const has = prev.includes(id);
+          if (row.liked && !has) return [...prev, id];
+          if (!row.liked && has) return prev.filter(i => i !== id);
+          return prev;
+        });
+      }
+    } catch (e) {
+      // Revert optimistic update on failure
+      setLiked(prev => wasLiked ? [...prev, id] : prev.filter(i => i !== id));
+      setPosts(prev => prev.map(p => p.id === id ? { ...p, likes: Math.max(0, (p.likes || 0) + (wasLiked ? 1 : -1)) } : p));
+    }
   };
 
   if (loading) {
@@ -110,7 +141,7 @@ export default function FeedScreen() {
             <Text style={styles.postCaption}>{post.caption}</Text>
             <View style={styles.postActions}>
               <TouchableOpacity onPress={() => toggleLike(post.id)}>
-                <Text style={styles.actionTxt}>{liked.includes(post.id) ? '❤️' : '🤍'} {liked.includes(post.id) ? (post.likes || 0) + 1 : (post.likes || 0)}</Text>
+                <Text style={styles.actionTxt}>{liked.includes(post.id) ? '❤️' : '🤍'} {post.likes || 0}</Text>
               </TouchableOpacity>
             </View>
           </View>

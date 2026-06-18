@@ -128,6 +128,7 @@ export default function ProfileScreen() {
             <Text style={styles.eventEmoji}>{e.emoji}</Text>
             <View style={{ flex: 1 }}>
               <Text style={styles.eventTitle}>{e.title}</Text>
+              {e.location ? <Text style={styles.eventMeta} numberOfLines={1}>📍 {e.location}</Text> : null}
               <Text style={styles.eventMeta}>👥 {e.people}/{e.max_people} · {e.is_now ? '🟢 Now' : '🕐 Later'}</Text>
             </View>
           </View>
