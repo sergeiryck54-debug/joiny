@@ -1,6 +1,6 @@
 import { router } from 'expo-router';
 import { useEffect, useState } from 'react';
-import { ActivityIndicator, RefreshControl, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { ActivityIndicator, Alert, RefreshControl, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { supabase } from '../lib/supabase';
 
 const TABS = ['All', 'Events', 'Posts'];
@@ -10,6 +10,7 @@ export default function NotificationsScreen() {
   const [items, setItems] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const [userId, setUserId] = useState('');
 
   const timeAgo = (iso: string) => {
     const mins = Math.floor((Date.now() - new Date(iso).getTime()) / 60000);
@@ -27,7 +28,7 @@ export default function NotificationsScreen() {
       const eItems = (evts || []).map((e: any) => ({
         id: 'e' + e.id, type: 'event', emoji: e.emoji || '📍', bg: '#FFF6D6',
         text: `New event nearby — "${e.title}" · ${e.people}/${e.max_people} people`,
-        time: timeAgo(e.created_at), created: e.created_at,
+        time: timeAgo(e.created_at), created: e.created_at, eventId: e.id, creator: e.creator_id,
       }));
       const pItems = (psts || []).map((p: any) => ({
         id: 'p' + p.id, type: 'post', emoji: p.emoji || '💬', bg: p.bg_color || '#F2F2EE',
@@ -40,8 +41,30 @@ export default function NotificationsScreen() {
   };
 
   useEffect(() => {
-    (async () => { await fetchAll(); setLoading(false); })();
+    (async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (user) setUserId(user.id);
+      await fetchAll();
+      setLoading(false);
+    })();
   }, []);
+
+  const deleteEvent = (eventId: string) => {
+    Alert.alert('Удалить событие?', 'Событие и его чат удалятся для всех. Это необратимо.', [
+      { text: 'Отмена', style: 'cancel' },
+      {
+        text: 'Удалить', style: 'destructive', onPress: async () => {
+          try {
+            const { error } = await supabase.rpc('delete_event', { p_event_id: eventId });
+            if (error) throw error;
+            setItems(prev => prev.filter(i => i.eventId !== eventId));
+          } catch (e) {
+            Alert.alert('Не удалось удалить', 'Попробуй ещё раз.');
+          }
+        },
+      },
+    ]);
+  };
 
   const onRefresh = async () => {
     setRefreshing(true);
@@ -101,6 +124,11 @@ export default function NotificationsScreen() {
                   <Text style={styles.viewBtnTxt}>View on map →</Text>
                 </TouchableOpacity>
               )}
+              {n.type === 'event' && n.creator && n.creator === userId && (
+                <TouchableOpacity style={styles.viewBtn} onPress={() => deleteEvent(n.eventId)}>
+                  <Text style={styles.delLinkTxt}>🗑 Удалить</Text>
+                </TouchableOpacity>
+              )}
               <Text style={styles.time}>{n.time}</Text>
             </View>
           </View>
@@ -127,6 +155,7 @@ const styles = StyleSheet.create({
   notifText: { fontSize: 14, color: '#333', lineHeight: 20, marginBottom: 6 },
   viewBtn: { alignSelf: 'flex-start', marginBottom: 6 },
   viewBtnTxt: { fontSize: 13, fontWeight: '700', color: '#C49B00' },
+  delLinkTxt: { fontSize: 13, fontWeight: '700', color: '#C0392B' },
   time: { fontSize: 11, color: '#aaa' },
   empty: { alignItems: 'center', paddingTop: 60, gap: 10 },
   emptyIcon: { fontSize: 52 },

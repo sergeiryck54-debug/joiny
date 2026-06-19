@@ -1,3 +1,4 @@
+import { Image } from 'expo-image';
 import * as Location from 'expo-location';
 import { router } from 'expo-router';
 import { useEffect, useState } from 'react';
@@ -42,6 +43,7 @@ export default function MapScreen() {
   const [loading, setLoading] = useState(true);
   const [dbEvents, setDbEvents] = useState<any[]>([]);
   const [mapHtml, setMapHtml] = useState('');
+  const [userId, setUserId] = useState('');
 
   useEffect(() => {
     (async () => {
@@ -58,7 +60,7 @@ export default function MapScreen() {
         const { data } = await supabase.from('events').select('*').order('created_at', { ascending: false });
         const mapped = (data || []).map((e: any) => ({
           id: e.id, title: e.title, category: e.emoji, lat: e.lat, lng: e.lng,
-          people: e.people, max: e.max_people, now: e.is_now, location: e.location,
+          people: e.people, max: e.max_people, now: e.is_now, location: e.location, creator: e.creator_id, photo: e.photo_url,
         }));
         setDbEvents(mapped);
         // Build the map once from the initial snapshot so joining doesn't reload it.
@@ -66,6 +68,7 @@ export default function MapScreen() {
         // Which events has the current user already joined?
         const { data: { user } } = await supabase.auth.getUser();
         if (user) {
+          setUserId(user.id);
           const { data: parts } = await supabase.from('event_participants').select('event_id').eq('user_id', user.id);
           if (parts) setJoined(parts.map((p: any) => p.event_id));
         }
@@ -110,6 +113,26 @@ export default function MapScreen() {
     } finally {
       setJoining(null);
     }
+  };
+
+  const deleteEvent = (id: string) => {
+    Alert.alert('Удалить событие?', 'Событие и его чат удалятся для всех. Это необратимо.', [
+      { text: 'Отмена', style: 'cancel' },
+      {
+        text: 'Удалить', style: 'destructive', onPress: async () => {
+          try {
+            const { error } = await supabase.rpc('delete_event', { p_event_id: id });
+            if (error) throw error;
+            const next = dbEvents.filter(e => e.id !== id);
+            setDbEvents(next);
+            setJoined(prev => prev.filter(i => i !== id));
+            if (location) setMapHtml(buildMapHtml(location, next));
+          } catch (e) {
+            Alert.alert('Не удалось удалить', 'Попробуй ещё раз.');
+          }
+        },
+      },
+    ]);
   };
 
   if (loading) {
@@ -177,7 +200,11 @@ export default function MapScreen() {
         {filtered.map(event => (
           <View key={event.id} style={styles.card}>
             <View style={styles.cardLeft}>
-              <Text style={styles.cardEmoji}>{event.category}</Text>
+              {event.photo ? (
+                <Image source={{ uri: event.photo }} style={styles.cardPhoto} contentFit="cover" />
+              ) : (
+                <Text style={styles.cardEmoji}>{event.category}</Text>
+              )}
             </View>
             <View style={styles.cardInfo}>
               <Text style={styles.cardTitle}>{event.title}</Text>
@@ -197,6 +224,11 @@ export default function MapScreen() {
               {joined.includes(event.id) && (
                 <TouchableOpacity style={styles.chatBtn} onPress={() => router.push(`/event/${event.id}` as any)}>
                   <Text style={styles.chatBtnTxt}>💬 Chat</Text>
+                </TouchableOpacity>
+              )}
+              {event.creator && event.creator === userId && (
+                <TouchableOpacity style={styles.delBtn} onPress={() => deleteEvent(event.id)}>
+                  <Text style={styles.delBtnTxt}>🗑 Delete</Text>
                 </TouchableOpacity>
               )}
             </View>
@@ -231,7 +263,8 @@ const styles = StyleSheet.create({
   ftagTxtActive: { color: '#F5C400' },
   list: { flex: 1, marginTop: 10, paddingHorizontal: 12 },
   card: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#fff', borderRadius: 14, padding: 12, marginBottom: 10, borderWidth: 1, borderColor: '#E5E5DF' },
-  cardLeft: { width: 44, height: 44, borderRadius: 12, backgroundColor: '#F2F2EE', alignItems: 'center', justifyContent: 'center', marginRight: 12 },
+  cardLeft: { width: 44, height: 44, borderRadius: 12, backgroundColor: '#F2F2EE', alignItems: 'center', justifyContent: 'center', marginRight: 12, overflow: 'hidden' },
+  cardPhoto: { width: 44, height: 44 },
   cardEmoji: { fontSize: 22 },
   cardInfo: { flex: 1 },
   cardTitle: { fontSize: 14, fontWeight: '700', color: '#111', marginBottom: 3 },
@@ -244,6 +277,8 @@ const styles = StyleSheet.create({
   joinTxtDone: { color: '#111' },
   chatBtn: { paddingHorizontal: 12, paddingVertical: 6, borderRadius: 10, borderWidth: 1.5, borderColor: '#E5E5DF', minWidth: 64, alignItems: 'center' },
   chatBtnTxt: { fontSize: 12, fontWeight: '700', color: '#111' },
+  delBtn: { paddingHorizontal: 12, paddingVertical: 6, borderRadius: 10, borderWidth: 1.5, borderColor: '#F3C5C5', backgroundColor: '#FDECEC', minWidth: 64, alignItems: 'center' },
+  delBtnTxt: { fontSize: 12, fontWeight: '700', color: '#C0392B' },
   fab: { position: 'absolute', bottom: 24, alignSelf: 'center', backgroundColor: '#111', paddingHorizontal: 24, paddingVertical: 14, borderRadius: 50, elevation: 8 },
   fabTxt: { color: '#F5C400', fontSize: 15, fontWeight: '700' },
 });

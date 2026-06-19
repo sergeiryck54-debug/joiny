@@ -1,8 +1,10 @@
+import { Image } from 'expo-image';
 import * as Location from 'expo-location';
 import { useLocalSearchParams } from 'expo-router';
 import { useEffect, useState } from 'react';
 import { ActivityIndicator, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { geocodeAddress, reverseGeocode } from '../lib/geocode';
+import { pickImageBase64, uploadJpeg } from '../lib/photos';
 import { supabase } from '../lib/supabase';
 
 const CATEGORIES = [
@@ -29,6 +31,8 @@ export default function CreateScreen() {
   const [pinned, setPinned] = useState<{ lat: number; lng: number } | null>(null);
   const [addrEdited, setAddrEdited] = useState(false);
   const [resolvingAddr, setResolvingAddr] = useState(false);
+  // Optional event photo (base64 kept until publish, then uploaded).
+  const [photoBase64, setPhotoBase64] = useState<string | null>(null);
 
   const categoryEmoji: Record<string, string> = { Sport: '⚽', Music: '🎸', Food: '🍕', Games: '🎲', Health: '🧘', Photo: '📸', Pets: '🐕', Books: '📚' };
 
@@ -47,6 +51,13 @@ export default function CreateScreen() {
       })();
     }
   }, [params.lat, params.lng]);
+
+  const pickEventPhoto = async () => {
+    try {
+      const b64 = await pickImageBase64([4, 3]);
+      if (b64) setPhotoBase64(b64);
+    } catch (e) {}
+  };
 
   const publishEvent = async () => {
     setSaving(true);
@@ -72,13 +83,18 @@ export default function CreateScreen() {
       }
     }
     try {
+      const { data: { user } } = await supabase.auth.getUser();
+      let photoUrl: string | null = null;
+      if (photoBase64 && user) {
+        try { photoUrl = await uploadJpeg('event-photos', `${user.id}/${Date.now()}.jpg`, photoBase64); } catch (e) {}
+      }
       const { data: ev } = await supabase.from('events').insert({
         title, category, emoji: categoryEmoji[category] || '📍',
         location: place.trim(),
         lat, lng, people: 1, max_people: parseInt(maxPeople), is_now: mode === 'now',
+        creator_id: user?.id ?? null, photo_url: photoUrl,
       }).select('id').single();
       // Auto-join the creator so people count matches participants.
-      const { data: { user } } = await supabase.auth.getUser();
       if (ev?.id && user) {
         await supabase.from('event_participants').insert({ event_id: ev.id, user_id: user.id });
       }
@@ -95,7 +111,7 @@ export default function CreateScreen() {
         <Text style={styles.successEmoji}>🎉</Text>
         <Text style={styles.successTitle}>Event Created!</Text>
         <Text style={styles.successSub}>People nearby will see your event on the map right now</Text>
-        <TouchableOpacity style={styles.successBtn} onPress={() => { setCreated(false); setTitle(''); setCategory(''); setPlace(''); setPinned(null); setAddrEdited(false); }}>
+        <TouchableOpacity style={styles.successBtn} onPress={() => { setCreated(false); setTitle(''); setCategory(''); setPlace(''); setPinned(null); setAddrEdited(false); setPhotoBase64(null); }}>
           <Text style={styles.successBtnTxt}>Create Another →</Text>
         </TouchableOpacity>
       </View>
@@ -178,6 +194,28 @@ export default function CreateScreen() {
           )}
         </View>
 
+        {/* Photo */}
+        <View style={styles.field}>
+          <Text style={styles.label}>PHOTO</Text>
+          {photoBase64 ? (
+            <View>
+              <Image source={{ uri: `data:image/jpeg;base64,${photoBase64}` }} style={styles.photoPreview} contentFit="cover" />
+              <View style={styles.photoActions}>
+                <TouchableOpacity style={styles.photoBtn} onPress={pickEventPhoto}>
+                  <Text style={styles.photoBtnTxt}>Заменить</Text>
+                </TouchableOpacity>
+                <TouchableOpacity style={styles.photoBtn} onPress={() => setPhotoBase64(null)}>
+                  <Text style={styles.photoBtnTxt}>Убрать</Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+          ) : (
+            <TouchableOpacity style={styles.photoPlaceholder} onPress={pickEventPhoto}>
+              <Text style={styles.photoPlaceholderTxt}>📷 Добавить фото</Text>
+            </TouchableOpacity>
+          )}
+        </View>
+
         {/* Max people */}
         <View style={styles.field}>
           <Text style={styles.label}>MAX PEOPLE</Text>
@@ -240,6 +278,12 @@ const styles = StyleSheet.create({
   label: { fontSize: 11, fontWeight: '700', color: '#888', letterSpacing: 0.5, marginBottom: 8 },
   locHint: { fontSize: 12, color: '#888', marginTop: 6 },
   locHintRow: { flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 6 },
+  photoPreview: { width: '100%', height: 170, borderRadius: 12, backgroundColor: '#eee' },
+  photoActions: { flexDirection: 'row', gap: 8, marginTop: 8 },
+  photoBtn: { paddingHorizontal: 14, paddingVertical: 8, borderRadius: 10, borderWidth: 1.5, borderColor: '#E5E5DF', backgroundColor: '#fff' },
+  photoBtnTxt: { fontSize: 13, fontWeight: '700', color: '#111' },
+  photoPlaceholder: { height: 100, borderRadius: 12, borderWidth: 1.5, borderColor: '#E5E5DF', borderStyle: 'dashed', backgroundColor: '#fff', alignItems: 'center', justifyContent: 'center' },
+  photoPlaceholderTxt: { fontSize: 14, fontWeight: '600', color: '#888' },
   input: { backgroundColor: '#fff', borderWidth: 1.5, borderColor: '#E5E5DF', borderRadius: 12, padding: 14, fontSize: 15, color: '#111' },
   catGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
   catBtn: { paddingHorizontal: 14, paddingVertical: 10, borderRadius: 12, borderWidth: 1.5, borderColor: '#E5E5DF', backgroundColor: '#fff', alignItems: 'center', gap: 4, minWidth: 72 },

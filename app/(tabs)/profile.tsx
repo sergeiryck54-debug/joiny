@@ -1,6 +1,9 @@
+import { decode } from 'base64-arraybuffer';
+import { Image } from 'expo-image';
+import * as ImagePicker from 'expo-image-picker';
 import { router } from 'expo-router';
 import { useEffect, useState } from 'react';
-import { ActivityIndicator, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import { ActivityIndicator, Alert, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { supabase } from '../lib/supabase';
 
 const ALL_INTERESTS = ['⚽ Sport', '🎸 Music', '🏃 Running', '📸 Photo', '🐕 Dog Walks', '🎲 Board Games', '🍕 Food', '📚 Books', '🧘 Yoga', '🎨 Art'];
@@ -12,10 +15,12 @@ export default function ProfileScreen() {
   const [bio, setBio] = useState('');
   const [city, setCity] = useState('');
   const [interests, setInterests] = useState<string[]>([]);
+  const [avatarUrl, setAvatarUrl] = useState('');
   const [myEvents, setMyEvents] = useState<any[]>([]);
   const [editing, setEditing] = useState(false);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [uploadingAvatar, setUploadingAvatar] = useState(false);
 
   useEffect(() => {
     (async () => {
@@ -30,8 +35,9 @@ export default function ProfileScreen() {
             setBio(prof.bio || '');
             setCity(prof.city || '');
             setInterests(prof.interests || []);
+            setAvatarUrl(prof.avatar_url || '');
           }
-          const { data: evts } = await supabase.from('events').select('*').order('created_at', { ascending: false }).limit(10);
+          const { data: evts } = await supabase.from('events').select('*').eq('creator_id', user.id).order('created_at', { ascending: false });
           if (evts) setMyEvents(evts);
         }
       } catch (e) {}
@@ -52,6 +58,51 @@ export default function ProfileScreen() {
     setInterests(prev => prev.includes(tag) ? prev.filter(t => t !== tag) : [...prev, tag]);
   };
 
+  const pickAvatar = async () => {
+    if (!userId || uploadingAvatar) return;
+    try {
+      // Android 13+ photo picker needs no permission; launch it directly.
+      const result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ImagePicker.MediaTypeOptions.Images,
+        allowsEditing: true,
+        aspect: [1, 1],
+        quality: 0.6, // compress
+        base64: true,
+      });
+      if (result.canceled || !result.assets?.length || !result.assets[0].base64) return;
+      setUploadingAvatar(true);
+      const path = `${userId}/avatar.jpg`;
+      const { error: upErr } = await supabase.storage.from('avatars')
+        .upload(path, decode(result.assets[0].base64!), { contentType: 'image/jpeg', upsert: true });
+      if (upErr) throw upErr;
+      const { data: pub } = supabase.storage.from('avatars').getPublicUrl(path);
+      const url = `${pub.publicUrl}?t=${Date.now()}`; // cache-bust so a replaced avatar refreshes
+      await supabase.from('profiles').upsert({ id: userId, avatar_url: url });
+      setAvatarUrl(url);
+    } catch (e) {
+      Alert.alert('Не удалось загрузить', 'Попробуй ещё раз.');
+    } finally {
+      setUploadingAvatar(false);
+    }
+  };
+
+  const deleteEvent = (id: string) => {
+    Alert.alert('Удалить событие?', 'Событие и его чат удалятся для всех. Это необратимо.', [
+      { text: 'Отмена', style: 'cancel' },
+      {
+        text: 'Удалить', style: 'destructive', onPress: async () => {
+          try {
+            const { error } = await supabase.rpc('delete_event', { p_event_id: id });
+            if (error) throw error;
+            setMyEvents(prev => prev.filter(e => e.id !== id));
+          } catch (e) {
+            Alert.alert('Не удалось удалить', 'Попробуй ещё раз.');
+          }
+        },
+      },
+    ]);
+  };
+
   if (loading) {
     return (
       <View style={styles.loadingWrap}>
@@ -63,9 +114,21 @@ export default function ProfileScreen() {
   return (
     <ScrollView style={styles.container} showsVerticalScrollIndicator={false}>
       <View style={styles.hero}>
-        <View style={styles.avatar}>
-          <Text style={styles.avatarEmoji}>🧑</Text>
-        </View>
+        <TouchableOpacity style={styles.avatar} onPress={pickAvatar} activeOpacity={0.8}>
+          {avatarUrl ? (
+            <Image source={{ uri: avatarUrl }} style={styles.avatarImg} contentFit="cover" transition={150} />
+          ) : (
+            <Text style={styles.avatarEmoji}>🧑</Text>
+          )}
+          {uploadingAvatar ? (
+            <View style={styles.avatarOverlay}><ActivityIndicator color="#111" /></View>
+          ) : (
+            <View style={styles.avatarBadge}><Text style={styles.avatarBadgeTxt}>📷</Text></View>
+          )}
+        </TouchableOpacity>
+        <TouchableOpacity onPress={pickAvatar} disabled={uploadingAvatar} style={styles.changePhotoBtn}>
+          <Text style={styles.changePhotoTxt}>{uploadingAvatar ? 'Загрузка…' : avatarUrl ? 'Сменить фото' : 'Добавить фото'}</Text>
+        </TouchableOpacity>
         {editing ? (
           <>
             <TextInput style={styles.editInput} placeholder="Your name" placeholderTextColor="rgba(255,255,255,0.3)" value={name} onChangeText={setName} />
@@ -131,6 +194,9 @@ export default function ProfileScreen() {
               {e.location ? <Text style={styles.eventMeta} numberOfLines={1}>📍 {e.location}</Text> : null}
               <Text style={styles.eventMeta}>👥 {e.people}/{e.max_people} · {e.is_now ? '🟢 Now' : '🕐 Later'}</Text>
             </View>
+            <TouchableOpacity style={styles.eventDelBtn} onPress={() => deleteEvent(e.id)}>
+              <Text style={styles.eventDelTxt}>🗑</Text>
+            </TouchableOpacity>
           </View>
         ))}
       </View>
@@ -149,6 +215,12 @@ const styles = StyleSheet.create({
   hero: { backgroundColor: '#111110', padding: 28, paddingTop: 64, alignItems: 'center' },
   avatar: { width: 80, height: 80, borderRadius: 40, backgroundColor: '#F5C400', alignItems: 'center', justifyContent: 'center', marginBottom: 14 },
   avatarEmoji: { fontSize: 36 },
+  avatarImg: { width: 80, height: 80, borderRadius: 40 },
+  avatarOverlay: { position: 'absolute', width: 80, height: 80, borderRadius: 40, backgroundColor: 'rgba(245,196,0,0.55)', alignItems: 'center', justifyContent: 'center' },
+  avatarBadge: { position: 'absolute', right: -2, bottom: -2, width: 28, height: 28, borderRadius: 14, backgroundColor: '#111', borderWidth: 2, borderColor: '#111110', alignItems: 'center', justifyContent: 'center' },
+  avatarBadgeTxt: { fontSize: 13 },
+  changePhotoBtn: { marginBottom: 12, paddingHorizontal: 14, paddingVertical: 6, borderRadius: 16, backgroundColor: 'rgba(255,255,255,0.1)' },
+  changePhotoTxt: { color: '#F5C400', fontSize: 12, fontWeight: '700' },
   name: { fontSize: 22, fontWeight: '800', color: '#fff', marginBottom: 4 },
   bio: { fontSize: 13, color: 'rgba(255,255,255,0.55)', marginBottom: 4 },
   location: { fontSize: 12, color: 'rgba(255,255,255,0.4)', marginBottom: 16 },
@@ -173,6 +245,8 @@ const styles = StyleSheet.create({
   saveInterestsTxt: { fontSize: 13, fontWeight: '700', color: '#F5C400' },
   empty: { fontSize: 13, color: '#888' },
   eventCard: { flexDirection: 'row', alignItems: 'center', gap: 12, backgroundColor: '#fff', borderRadius: 14, padding: 12, marginBottom: 8, borderWidth: 1, borderColor: '#E5E5DF' },
+  eventDelBtn: { width: 36, height: 36, borderRadius: 10, backgroundColor: '#FDECEC', alignItems: 'center', justifyContent: 'center' },
+  eventDelTxt: { fontSize: 16 },
   eventEmoji: { fontSize: 24 },
   eventTitle: { fontSize: 14, fontWeight: '700', color: '#111' },
   eventMeta: { fontSize: 12, color: '#888', marginTop: 2 },
