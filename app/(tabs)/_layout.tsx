@@ -4,19 +4,23 @@ import { ActivityIndicator, Text, View } from 'react-native';
 import { supabase } from '../lib/supabase';
 
 export default function TabLayout() {
-  const [checked, setChecked] = useState(false);
+  // null = checking, false = no session (redirecting), true = allowed
+  const [authed, setAuthed] = useState<boolean | null>(null);
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data }) => {
-      setChecked(true);
+      if (!data.session) { setAuthed(false); router.replace('/'); }
+      else setAuthed(true);
     });
     const { data: sub } = supabase.auth.onAuthStateChange((_e, session) => {
-      if (!session) router.replace('/');
+      if (!session) { setAuthed(false); router.replace('/'); }
+      else setAuthed(true);
     });
     return () => sub.subscription.unsubscribe();
   }, []);
 
-  if (!checked) {
+  // Never render the tabs without a session.
+  if (authed !== true) {
     return (
       <View style={{ flex: 1, backgroundColor: '#111110', alignItems: 'center', justifyContent: 'center' }}>
         <ActivityIndicator size="large" color="#F5C400" />
@@ -38,7 +42,6 @@ export default function TabLayout() {
         headerShown: false,
       }}
     >
-      <Tabs.Screen name="index" options={{ href: null }} />
       <Tabs.Screen name="explore" options={{ title: 'Map', tabBarIcon: () => <Text>🗺</Text> }} />
       <Tabs.Screen name="create" options={{ title: 'Create', tabBarIcon: () => <Text>✦</Text> }} />
       <Tabs.Screen name="feed" options={{ title: 'Feed', tabBarIcon: () => <Text>📰</Text> }} />

@@ -1,9 +1,13 @@
-import { useEffect, useState } from 'react';
+import { Image } from 'expo-image';
+import { router, useFocusEffect } from 'expo-router';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { ActivityIndicator, RefreshControl, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { supabase } from '../lib/supabase';
 
+const byNewest = (a: any, b: any) => new Date(b.created).getTime() - new Date(a.created).getTime();
+
 export default function FeedScreen() {
-  const [posts, setPosts] = useState<any[]>([]);
+  const [items, setItems] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [liked, setLiked] = useState<string[]>([]);
@@ -11,10 +15,29 @@ export default function FeedScreen() {
   const [text, setText] = useState('');
   const [posting, setPosting] = useState(false);
 
-  const fetchPosts = async () => {
+  const fetchFeed = async () => {
     try {
-      const { data } = await supabase.from('posts').select('*').order('created_at', { ascending: false });
-      if (data) setPosts(data);
+      const { data: { user } } = await supabase.auth.getUser();
+      let friendSet = new Set<string>();
+      if (user) {
+        const { data: fr } = await supabase.from('friendships').select('friend_id').eq('user_id', user.id);
+        friendSet = new Set((fr || []).map((f: any) => f.friend_id));
+      }
+      const [{ data: events }, { data: posts }] = await Promise.all([
+        supabase.from('events').select('*').order('created_at', { ascending: false }).limit(40),
+        supabase.from('posts').select('*').order('created_at', { ascending: false }).limit(40),
+      ]);
+      const evItems = (events || []).map((e: any) => ({
+        kind: 'event', id: e.id, created: e.created_at, title: e.title, emoji: e.emoji, photo: e.photo_url,
+        location: e.location, people: e.people, max: e.max_people, now: e.is_now, friend: friendSet.has(e.creator_id),
+      }));
+      const poItems = (posts || []).map((p: any) => ({
+        kind: 'post', id: p.id, created: p.created_at, user_name: p.user_name, activity: p.activity,
+        emoji: p.emoji, bg: p.bg_color, location: p.location, caption: p.caption, likes: p.likes,
+      }));
+      const friendEvents = evItems.filter(e => e.friend).sort(byNewest);
+      const rest = [...evItems.filter(e => !e.friend), ...poItems].sort(byNewest);
+      setItems([...friendEvents, ...rest]);
     } catch (e) {}
   };
 
@@ -28,12 +51,19 @@ export default function FeedScreen() {
   };
 
   useEffect(() => {
-    (async () => { await Promise.all([fetchPosts(), fetchMyLikes()]); setLoading(false); })();
+    (async () => { await Promise.all([fetchFeed(), fetchMyLikes()]); setLoading(false); })();
   }, []);
+
+  const firstFocus = useRef(true);
+  useFocusEffect(useCallback(() => {
+    if (firstFocus.current) { firstFocus.current = false; return; }
+    fetchFeed();
+    fetchMyLikes();
+  }, []));
 
   const onRefresh = async () => {
     setRefreshing(true);
-    await Promise.all([fetchPosts(), fetchMyLikes()]);
+    await Promise.all([fetchFeed(), fetchMyLikes()]);
     setRefreshing(false);
   };
 
@@ -45,32 +75,25 @@ export default function FeedScreen() {
       const { data: prof } = user ? await supabase.from('profiles').select('name').eq('id', user.id).single() : { data: null };
       await supabase.from('posts').insert({
         user_name: prof?.name || user?.email?.split('@')[0] || 'Anonymous',
-        activity: '✍️ New post · just now',
-        emoji: '💬',
-        bg_color: '#FFF6D6',
-        location: '',
-        caption: text.trim(),
-        likes: 0,
+        activity: '✍️ New post · just now', emoji: '💬', bg_color: '#FFF6D6', location: '', caption: text.trim(), likes: 0,
       });
       setText('');
       setWriting(false);
-      await fetchPosts();
+      await fetchFeed();
     } catch (e) {}
     setPosting(false);
   };
 
   const toggleLike = async (id: string) => {
     const wasLiked = liked.includes(id);
-    // Optimistic update
     setLiked(prev => wasLiked ? prev.filter(i => i !== id) : [...prev, id]);
-    setPosts(prev => prev.map(p => p.id === id ? { ...p, likes: Math.max(0, (p.likes || 0) + (wasLiked ? -1 : 1)) } : p));
+    setItems(prev => prev.map(it => (it.kind === 'post' && it.id === id) ? { ...it, likes: Math.max(0, (it.likes || 0) + (wasLiked ? -1 : 1)) } : it));
     try {
       const { data, error } = await supabase.rpc('toggle_like', { p_post_id: id });
       if (error) throw error;
       const row = Array.isArray(data) ? data[0] : data;
       if (row) {
-        // Reconcile with server truth
-        setPosts(prev => prev.map(p => p.id === id ? { ...p, likes: row.likes } : p));
+        setItems(prev => prev.map(it => (it.kind === 'post' && it.id === id) ? { ...it, likes: row.likes } : it));
         setLiked(prev => {
           const has = prev.includes(id);
           if (row.liked && !has) return [...prev, id];
@@ -79,18 +102,13 @@ export default function FeedScreen() {
         });
       }
     } catch (e) {
-      // Revert optimistic update on failure
       setLiked(prev => wasLiked ? [...prev, id] : prev.filter(i => i !== id));
-      setPosts(prev => prev.map(p => p.id === id ? { ...p, likes: Math.max(0, (p.likes || 0) + (wasLiked ? 1 : -1)) } : p));
+      setItems(prev => prev.map(it => (it.kind === 'post' && it.id === id) ? { ...it, likes: Math.max(0, (it.likes || 0) + (wasLiked ? 1 : -1)) } : it));
     }
   };
 
   if (loading) {
-    return (
-      <View style={styles.loadingWrap}>
-        <ActivityIndicator size="large" color="#F5C400" />
-      </View>
-    );
+    return <View style={styles.loadingWrap}><ActivityIndicator size="large" color="#F5C400" /></View>;
   }
 
   return (
@@ -98,7 +116,7 @@ export default function FeedScreen() {
       <View style={styles.header}>
         <View>
           <Text style={styles.headerTitle}>Feed</Text>
-          <Text style={styles.headerSub}>Activities from your community</Text>
+          <Text style={styles.headerSub}>Друзья и активность сообщества</Text>
         </View>
         <TouchableOpacity style={styles.writeBtn} onPress={() => setWriting(w => !w)}>
           <Text style={styles.writeBtnTxt}>{writing ? '✕' : '✍️'}</Text>
@@ -107,41 +125,46 @@ export default function FeedScreen() {
 
       {writing && (
         <View style={styles.composer}>
-          <TextInput
-            style={styles.composerInput}
-            placeholder="What's happening?"
-            placeholderTextColor="#aaa"
-            value={text}
-            onChangeText={setText}
-            multiline
-          />
+          <TextInput style={styles.composerInput} placeholder="What's happening?" placeholderTextColor="#aaa" value={text} onChangeText={setText} multiline />
           <TouchableOpacity style={[styles.postBtn, (text.trim().length < 3 || posting) && styles.postBtnOff]} disabled={text.trim().length < 3 || posting} onPress={createPost}>
             {posting ? <ActivityIndicator color="#111" /> : <Text style={styles.postBtnTxt}>Post</Text>}
           </TouchableOpacity>
         </View>
       )}
 
-      <ScrollView
-        showsVerticalScrollIndicator={false}
-        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
-      >
-        {posts.length === 0 && <Text style={styles.empty}>No posts yet — write the first one!</Text>}
-        {posts.map(post => (
-          <View key={post.id} style={styles.post}>
+      <ScrollView showsVerticalScrollIndicator={false} refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}>
+        {items.length === 0 && <Text style={styles.empty}>Пока пусто — добавь друзей или создай событие!</Text>}
+        {items.map(item => item.kind === 'event' ? (
+          <TouchableOpacity key={'e' + item.id} style={styles.post} activeOpacity={0.7} onPress={() => router.push(`/event/${item.id}` as any)}>
             <View style={styles.postHead}>
-              <View style={[styles.postAv, { backgroundColor: post.bg_color || '#F2F2EE' }]}>
-                <Text style={styles.postAvEmoji}>{post.emoji}</Text>
+              <View style={[styles.postAv, { backgroundColor: '#FFF6D6', overflow: 'hidden' }]}>
+                {item.photo ? <Image source={{ uri: item.photo }} style={styles.postAvImg} contentFit="cover" /> : <Text style={styles.postAvEmoji}>{item.emoji}</Text>}
               </View>
               <View style={{ flex: 1 }}>
-                <Text style={styles.postUser}>{post.user_name}</Text>
-                <Text style={styles.postActivity}>{post.activity}</Text>
+                <Text style={styles.postUser}>{item.title}</Text>
+                <Text style={styles.postActivity}>📅 событие · 👥 {item.people}/{item.max} · {item.now ? '🟢 Now' : '🕐 Later'}</Text>
+              </View>
+              {item.friend && <View style={styles.friendBadge}><Text style={styles.friendBadgeTxt}>★ Друг</Text></View>}
+            </View>
+            {item.location ? <Text style={styles.postLoc}>📍 {item.location}</Text> : null}
+            <Text style={styles.openHint}>Открыть событие →</Text>
+          </TouchableOpacity>
+        ) : (
+          <View key={'p' + item.id} style={styles.post}>
+            <View style={styles.postHead}>
+              <View style={[styles.postAv, { backgroundColor: item.bg || '#F2F2EE' }]}>
+                <Text style={styles.postAvEmoji}>{item.emoji}</Text>
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text style={styles.postUser}>{item.user_name}</Text>
+                <Text style={styles.postActivity}>{item.activity}</Text>
               </View>
             </View>
-            {post.location ? <Text style={styles.postLoc}>{post.location}</Text> : null}
-            <Text style={styles.postCaption}>{post.caption}</Text>
+            {item.location ? <Text style={styles.postLoc}>{item.location}</Text> : null}
+            <Text style={styles.postCaption}>{item.caption}</Text>
             <View style={styles.postActions}>
-              <TouchableOpacity onPress={() => toggleLike(post.id)}>
-                <Text style={styles.actionTxt}>{liked.includes(post.id) ? '❤️' : '🤍'} {post.likes || 0}</Text>
+              <TouchableOpacity onPress={() => toggleLike(item.id)}>
+                <Text style={styles.actionTxt}>{liked.includes(item.id) ? '❤️' : '🤍'} {item.likes || 0}</Text>
               </TouchableOpacity>
             </View>
           </View>
@@ -169,11 +192,15 @@ const styles = StyleSheet.create({
   post: { backgroundColor: '#fff', marginBottom: 12, borderTopWidth: 1, borderBottomWidth: 1, borderColor: '#E5E5DF', padding: 12 },
   postHead: { flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 8 },
   postAv: { width: 40, height: 40, borderRadius: 20, alignItems: 'center', justifyContent: 'center' },
+  postAvImg: { width: 40, height: 40 },
   postAvEmoji: { fontSize: 20 },
   postUser: { fontSize: 14, fontWeight: '700', color: '#111' },
   postActivity: { fontSize: 11, color: '#888', marginTop: 1 },
+  friendBadge: { backgroundColor: '#F5C400', paddingHorizontal: 8, paddingVertical: 3, borderRadius: 10 },
+  friendBadgeTxt: { fontSize: 11, fontWeight: '800', color: '#111' },
   postLoc: { fontSize: 12, color: '#888', marginBottom: 6 },
   postCaption: { fontSize: 14, color: '#333', lineHeight: 20, marginBottom: 8 },
+  openHint: { fontSize: 13, fontWeight: '700', color: '#C49B00' },
   postActions: { flexDirection: 'row', gap: 16 },
   actionTxt: { fontSize: 14, fontWeight: '600', color: '#555' },
 });

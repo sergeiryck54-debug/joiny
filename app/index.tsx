@@ -2,7 +2,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { router, useFocusEffect } from 'expo-router';
 import { useCallback, useEffect, useState } from 'react';
 import { ActivityIndicator, KeyboardAvoidingView, Platform, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
-import { supabase } from '../lib/supabase';
+import { supabase } from './lib/supabase';
 
 const LANGS = ['EN', 'RU', 'TH'] as const;
 type Lang = typeof LANGS[number];
@@ -37,19 +37,21 @@ const T: Record<Lang, any> = {
   },
 };
 
-export default function HomeScreen() {
+export default function LoginScreen() {
   const [lang, setLang] = useState<Lang>('EN');
   const [step, setStep] = useState<'email' | 'code'>('email');
   const [email, setEmail] = useState('');
   const [code, setCode] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [checking, setChecking] = useState(true);
   const t = T[lang];
 
   useEffect(() => {
     AsyncStorage.getItem('lang').then(v => { if (v === 'RU' || v === 'TH' || v === 'EN') setLang(v); });
     supabase.auth.getSession().then(({ data }) => {
       if (data.session) router.replace('/feed');
+      else setChecking(false);
     });
   }, []);
 
@@ -80,6 +82,14 @@ export default function HomeScreen() {
     } catch (e) { setError(t.errNet); }
     finally { setLoading(false); }
   };
+
+  if (checking) {
+    return (
+      <View style={[styles.container, { alignItems: 'center', justifyContent: 'center' }]}>
+        <ActivityIndicator size="large" color="#F5C400" />
+      </View>
+    );
+  }
 
   return (
     <KeyboardAvoidingView style={styles.container} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>

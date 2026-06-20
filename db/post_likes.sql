@@ -47,13 +47,13 @@ begin
 
   if v_exists then
     delete from post_likes where post_id = p_post_id and user_id = v_user;
-    update posts set likes = greatest(0, coalesce(likes, 0) - 1)
-      where id = p_post_id returning likes into v_likes;
+    update posts set likes = greatest(0, coalesce(posts.likes, 0) - 1)
+      where posts.id = p_post_id returning posts.likes into v_likes;
     return query select false, coalesce(v_likes, 0);
   else
     insert into post_likes (post_id, user_id) values (p_post_id, v_user);
-    update posts set likes = coalesce(likes, 0) + 1
-      where id = p_post_id returning likes into v_likes;
+    update posts set likes = coalesce(posts.likes, 0) + 1
+      where posts.id = p_post_id returning posts.likes into v_likes;
     return query select true, coalesce(v_likes, 0);
   end if;
 end;

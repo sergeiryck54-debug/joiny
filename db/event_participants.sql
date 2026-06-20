@@ -48,19 +48,19 @@ begin
 
   if v_exists then
     delete from event_participants where event_id = p_event_id and user_id = v_user;
-    update events set people = greatest(0, coalesce(people, 0) - 1)
-      where id = p_event_id returning people into v_people;
+    update events set people = greatest(0, coalesce(events.people, 0) - 1)
+      where events.id = p_event_id returning events.people into v_people;
     return query select false, coalesce(v_people, 0);
   else
     -- lock the row and check capacity
-    select people, max_people into v_people, v_max
-      from events where id = p_event_id for update;
+    select events.people, events.max_people into v_people, v_max
+      from events where events.id = p_event_id for update;
     if v_max is not null and coalesce(v_people, 0) >= v_max then
       raise exception 'event is full';
     end if;
     insert into event_participants (event_id, user_id) values (p_event_id, v_user);
-    update events set people = coalesce(people, 0) + 1
-      where id = p_event_id returning people into v_people;
+    update events set people = coalesce(events.people, 0) + 1
+      where events.id = p_event_id returning events.people into v_people;
     return query select true, coalesce(v_people, 0);
   end if;
 end;

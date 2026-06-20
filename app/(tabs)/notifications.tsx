@@ -1,5 +1,5 @@
-import { router } from 'expo-router';
-import { useEffect, useState } from 'react';
+import { router, useFocusEffect } from 'expo-router';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { ActivityIndicator, Alert, RefreshControl, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { supabase } from '../lib/supabase';
 
@@ -48,6 +48,13 @@ export default function NotificationsScreen() {
       setLoading(false);
     })();
   }, []);
+
+  // Refresh when returning to this tab.
+  const firstFocus = useRef(true);
+  useFocusEffect(useCallback(() => {
+    if (firstFocus.current) { firstFocus.current = false; return; }
+    fetchAll();
+  }, []));
 
   const deleteEvent = (eventId: string) => {
     Alert.alert('Удалить событие?', 'Событие и его чат удалятся для всех. Это необратимо.', [
@@ -120,8 +127,8 @@ export default function NotificationsScreen() {
             <View style={{ flex: 1 }}>
               <Text style={styles.notifText}>{n.text}</Text>
               {n.type === 'event' && (
-                <TouchableOpacity style={styles.viewBtn} onPress={() => router.push('/explore')}>
-                  <Text style={styles.viewBtnTxt}>View on map →</Text>
+                <TouchableOpacity style={styles.viewBtn} onPress={() => router.push(`/event/${n.eventId}` as any)}>
+                  <Text style={styles.viewBtnTxt}>Открыть событие →</Text>
                 </TouchableOpacity>
               )}
               {n.type === 'event' && n.creator && n.creator === userId && (

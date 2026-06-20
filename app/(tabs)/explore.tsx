@@ -1,7 +1,7 @@
 import { Image } from 'expo-image';
 import * as Location from 'expo-location';
-import { router } from 'expo-router';
-import { useEffect, useState } from 'react';
+import { router, useFocusEffect } from 'expo-router';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { ActivityIndicator, Alert, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { WebView } from 'react-native-webview';
 import { supabase } from '../lib/supabase';
@@ -10,7 +10,7 @@ const FILTERS = ['All', '⚽', '🎸', '🧘', '🎲', '🐕'];
 
 function buildMapHtml(location: { lat: number; lng: number }, events: any[]) {
   const markersJs = events
-    .map(e => `L.marker([${e.lat}, ${e.lng}], {icon: L.divIcon({className:'',html:'<div style=\\'background:${e.now ? '#F5C400' : '#111'};color:${e.now ? '#111' : '#fff'};border-radius:12px;padding:4px 6px;font-size:14px;font-weight:700;white-space:nowrap\\'>${e.category} ${e.people}/${e.max}</div>',iconSize:[40,28]})}).addTo(map).bindPopup('${e.title}');`)
+    .map(e => `L.marker([${e.lat}, ${e.lng}], {icon: L.divIcon({className:'',html:'<div style=\\'background:${e.now ? '#F5C400' : '#111'};color:${e.now ? '#111' : '#fff'};border-radius:12px;padding:4px 6px;font-size:14px;font-weight:700;white-space:nowrap\\'>${e.category} ${e.people}/${e.max}</div>',iconSize:[40,28]})}).addTo(map).on('click', function(){ if(window.ReactNativeWebView){ window.ReactNativeWebView.postMessage(JSON.stringify({type:'event', id:'${e.id}'})); } });`)
     .join('\n');
   return `
     <!DOCTYPE html><html><head>
@@ -45,6 +45,33 @@ export default function MapScreen() {
   const [mapHtml, setMapHtml] = useState('');
   const [userId, setUserId] = useState('');
 
+  const locRef = useRef<{ lat: number; lng: number } | null>(null);
+  const sigRef = useRef('');
+  const firstFocus = useRef(true);
+
+  const fetchEvents = useCallback(async (loc: { lat: number; lng: number } | null) => {
+    try {
+      const { data } = await supabase.from('events').select('*').order('created_at', { ascending: false });
+      const mapped = (data || []).map((e: any) => ({
+        id: e.id, title: e.title, category: e.emoji, lat: e.lat, lng: e.lng,
+        people: e.people, max: e.max_people, now: e.is_now, location: e.location, creator: e.creator_id, photo: e.photo_url,
+      }));
+      setDbEvents(mapped);
+      // Rebuild the map only when the event set actually changed (avoids reload flicker).
+      const sig = mapped.map((e: any) => `${e.id}:${e.people}`).join(',');
+      if (loc && sig !== sigRef.current) {
+        sigRef.current = sig;
+        setMapHtml(buildMapHtml(loc, mapped));
+      }
+      const { data: { user } } = await supabase.auth.getUser();
+      if (user) {
+        setUserId(user.id);
+        const { data: parts } = await supabase.from('event_participants').select('event_id').eq('user_id', user.id);
+        if (parts) setJoined(parts.map((p: any) => p.event_id));
+      }
+    } catch (e) {}
+  }, []);
+
   useEffect(() => {
     (async () => {
       let loc = { lat: 12.9236, lng: 100.8825 };
@@ -55,27 +82,20 @@ export default function MapScreen() {
           loc = { lat: pos.coords.latitude, lng: pos.coords.longitude };
         }
       } catch (e) {}
+      locRef.current = loc;
       setLocation(loc);
-      try {
-        const { data } = await supabase.from('events').select('*').order('created_at', { ascending: false });
-        const mapped = (data || []).map((e: any) => ({
-          id: e.id, title: e.title, category: e.emoji, lat: e.lat, lng: e.lng,
-          people: e.people, max: e.max_people, now: e.is_now, location: e.location, creator: e.creator_id, photo: e.photo_url,
-        }));
-        setDbEvents(mapped);
-        // Build the map once from the initial snapshot so joining doesn't reload it.
-        setMapHtml(buildMapHtml(loc, mapped));
-        // Which events has the current user already joined?
-        const { data: { user } } = await supabase.auth.getUser();
-        if (user) {
-          setUserId(user.id);
-          const { data: parts } = await supabase.from('event_participants').select('event_id').eq('user_id', user.id);
-          if (parts) setJoined(parts.map((p: any) => p.event_id));
-        }
-      } catch (e) {}
+      await fetchEvents(loc);
       setLoading(false);
     })();
-  }, []);
+  }, [fetchEvents]);
+
+  // Re-fetch when returning to the Map tab so newly created events appear.
+  useFocusEffect(
+    useCallback(() => {
+      if (firstFocus.current) { firstFocus.current = false; return; }
+      fetchEvents(locRef.current);
+    }, [fetchEvents])
+  );
  
 
   const events = dbEvents;
@@ -155,7 +175,9 @@ export default function MapScreen() {
           onMessage={(ev) => {
             try {
               const msg = JSON.parse(ev.nativeEvent.data);
-              if (msg.type === 'mapclick') {
+              if (msg.type === 'event') {
+                router.push(`/event/${msg.id}` as any);
+              } else if (msg.type === 'mapclick') {
                 Alert.alert('Создать событие здесь?', 'Поставим событие в выбранной точке на карте.', [
                   { text: 'Отмена', style: 'cancel' },
                   { text: 'Создать', onPress: () => router.push(`/create?lat=${msg.lat}&lng=${msg.lng}` as any) },
@@ -199,18 +221,20 @@ export default function MapScreen() {
       <ScrollView style={styles.list} showsVerticalScrollIndicator={false}>
         {filtered.map(event => (
           <View key={event.id} style={styles.card}>
-            <View style={styles.cardLeft}>
-              {event.photo ? (
-                <Image source={{ uri: event.photo }} style={styles.cardPhoto} contentFit="cover" />
-              ) : (
-                <Text style={styles.cardEmoji}>{event.category}</Text>
-              )}
-            </View>
-            <View style={styles.cardInfo}>
-              <Text style={styles.cardTitle}>{event.title}</Text>
-              {event.location ? <Text style={styles.cardLoc} numberOfLines={1}>📍 {event.location}</Text> : null}
-              <Text style={styles.cardMeta}>👥 {event.people}/{event.max} · {event.now ? '🟢 Now' : '🕐 Later'}</Text>
-            </View>
+            <TouchableOpacity style={styles.cardMain} onPress={() => router.push(`/event/${event.id}` as any)} activeOpacity={0.7}>
+              <View style={styles.cardLeft}>
+                {event.photo ? (
+                  <Image source={{ uri: event.photo }} style={styles.cardPhoto} contentFit="cover" />
+                ) : (
+                  <Text style={styles.cardEmoji}>{event.category}</Text>
+                )}
+              </View>
+              <View style={styles.cardInfo}>
+                <Text style={styles.cardTitle}>{event.title}</Text>
+                {event.location ? <Text style={styles.cardLoc} numberOfLines={1}>📍 {event.location}</Text> : null}
+                <Text style={styles.cardMeta}>👥 {event.people}/{event.max} · {event.now ? '🟢 Now' : '🕐 Later'}</Text>
+              </View>
+            </TouchableOpacity>
             <View style={styles.cardActions}>
               <TouchableOpacity
                 style={[styles.joinBtn, joined.includes(event.id) && styles.joinBtnDone]}
@@ -221,14 +245,9 @@ export default function MapScreen() {
                   {joining === event.id ? '…' : joined.includes(event.id) ? '✓' : 'Join'}
                 </Text>
               </TouchableOpacity>
-              {joined.includes(event.id) && (
-                <TouchableOpacity style={styles.chatBtn} onPress={() => router.push(`/event/${event.id}` as any)}>
-                  <Text style={styles.chatBtnTxt}>💬 Chat</Text>
-                </TouchableOpacity>
-              )}
               {event.creator && event.creator === userId && (
                 <TouchableOpacity style={styles.delBtn} onPress={() => deleteEvent(event.id)}>
-                  <Text style={styles.delBtnTxt}>🗑 Delete</Text>
+                  <Text style={styles.delBtnTxt}>🗑</Text>
                 </TouchableOpacity>
               )}
             </View>
@@ -263,6 +282,7 @@ const styles = StyleSheet.create({
   ftagTxtActive: { color: '#F5C400' },
   list: { flex: 1, marginTop: 10, paddingHorizontal: 12 },
   card: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#fff', borderRadius: 14, padding: 12, marginBottom: 10, borderWidth: 1, borderColor: '#E5E5DF' },
+  cardMain: { flex: 1, flexDirection: 'row', alignItems: 'center' },
   cardLeft: { width: 44, height: 44, borderRadius: 12, backgroundColor: '#F2F2EE', alignItems: 'center', justifyContent: 'center', marginRight: 12, overflow: 'hidden' },
   cardPhoto: { width: 44, height: 44 },
   cardEmoji: { fontSize: 22 },

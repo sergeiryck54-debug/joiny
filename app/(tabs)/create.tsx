@@ -3,8 +3,9 @@ import * as Location from 'expo-location';
 import { useLocalSearchParams } from 'expo-router';
 import { useEffect, useState } from 'react';
 import { ActivityIndicator, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import { WebView } from 'react-native-webview';
 import { geocodeAddress, reverseGeocode } from '../lib/geocode';
-import { pickImageBase64, uploadJpeg } from '../lib/photos';
+import { addEventPhotos, pickImagesBase64 } from '../lib/photos';
 import { supabase } from '../lib/supabase';
 
 const CATEGORIES = [
@@ -18,6 +19,30 @@ const CATEGORIES = [
   { emoji: '📚', label: 'Books' },
 ];
 
+// Interactive picker map: tap to drop/move a pin and post its coords back to RN.
+function buildPickerHtml(center: { lat: number; lng: number }, pin: { lat: number; lng: number } | null) {
+  return `
+    <!DOCTYPE html><html><head>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <style>html,body,#map{margin:0;height:100%;width:100%}</style>
+    </head><body><div id="map"></div><script>
+      var map = L.map('map').setView([${center.lat}, ${center.lng}], 15);
+      L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {maxZoom: 19}).addTo(map);
+      var marker = null;
+      function setMarker(lat, lng){ if (marker){ marker.setLatLng([lat,lng]); } else { marker = L.marker([lat,lng]).addTo(map); } }
+      ${pin ? `setMarker(${pin.lat}, ${pin.lng});` : ''}
+      map.on('click', function(e){
+        setMarker(e.latlng.lat, e.latlng.lng);
+        if (window.ReactNativeWebView) {
+          window.ReactNativeWebView.postMessage(JSON.stringify({lat:e.latlng.lat, lng:e.latlng.lng}));
+        }
+      });
+    </script></body></html>
+  `;
+}
+
 export default function CreateScreen() {
   const params = useLocalSearchParams<{ lat?: string; lng?: string }>();
   const [mode, setMode] = useState<'now' | 'later'>('now');
@@ -25,14 +50,18 @@ export default function CreateScreen() {
   const [category, setCategory] = useState('');
   const [place, setPlace] = useState('');
   const [maxPeople, setMaxPeople] = useState('6');
+  const [startsAt, setStartsAt] = useState('');
   const [created, setCreated] = useState(false);
   const [saving, setSaving] = useState(false);
   // Exact point picked on the map (if the user arrived by tapping the map).
   const [pinned, setPinned] = useState<{ lat: number; lng: number } | null>(null);
   const [addrEdited, setAddrEdited] = useState(false);
   const [resolvingAddr, setResolvingAddr] = useState(false);
-  // Optional event photo (base64 kept until publish, then uploaded).
-  const [photoBase64, setPhotoBase64] = useState<string | null>(null);
+  // Optional event photos (base64 kept until publish, then uploaded as a gallery).
+  const [photos, setPhotos] = useState<string[]>([]);
+  const [mapHtml, setMapHtml] = useState('');
+  // Disable form scroll while panning the mini-map, so vertical drags reach the map.
+  const [formScroll, setFormScroll] = useState(true);
 
   const categoryEmoji: Record<string, string> = { Sport: '⚽', Music: '🎸', Food: '🍕', Games: '🎲', Health: '🧘', Photo: '📸', Pets: '🐕', Books: '📚' };
 
@@ -52,26 +81,63 @@ export default function CreateScreen() {
     }
   }, [params.lat, params.lng]);
 
+  // Build the picker map once — centred on the tapped point, the user's GPS, or a default.
+  useEffect(() => {
+    (async () => {
+      let center = { lat: 12.9236, lng: 100.8825 };
+      const la = params.lat ? parseFloat(params.lat) : NaN;
+      const ln = params.lng ? parseFloat(params.lng) : NaN;
+      let pin: { lat: number; lng: number } | null = null;
+      if (!isNaN(la) && !isNaN(ln)) { center = { lat: la, lng: ln }; pin = center; }
+      else {
+        try {
+          const { status } = await Location.requestForegroundPermissionsAsync();
+          if (status === 'granted') {
+            const pos = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced });
+            center = { lat: pos.coords.latitude, lng: pos.coords.longitude };
+          }
+        } catch (e) {}
+      }
+      setMapHtml(buildPickerHtml(center, pin));
+    })();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // Tapped the picker map → pin that exact point and resolve its address.
+  const onMapMessage = (ev: any) => {
+    try {
+      const msg = JSON.parse(ev.nativeEvent.data);
+      if (typeof msg.lat === 'number' && typeof msg.lng === 'number') {
+        setPinned({ lat: msg.lat, lng: msg.lng });
+        setAddrEdited(false);
+        setResolvingAddr(true);
+        (async () => {
+          const addr = await reverseGeocode(msg.lat, msg.lng);
+          if (addr) setPlace(addr);
+          setResolvingAddr(false);
+        })();
+      }
+    } catch (e) {}
+  };
+
   const pickEventPhoto = async () => {
     try {
-      const b64 = await pickImageBase64([4, 3]);
-      if (b64) setPhotoBase64(b64);
+      const list = await pickImagesBase64(6 - photos.length);
+      if (list.length) setPhotos(prev => [...prev, ...list].slice(0, 6));
     } catch (e) {}
   };
 
   const publishEvent = async () => {
     setSaving(true);
     let lat = 12.9236, lng = 100.8825;
-    if (pinned && !addrEdited) {
-      // Exact point picked on the map — pin there.
+    if (pinned) {
+      // A point was picked on the map — it's authoritative.
       lat = pinned.lat; lng = pinned.lng;
     } else {
-      // Geocode the typed address so the event sits where the user said.
+      // No pin: try geocoding the typed address, then fall back to GPS.
       const geo = await geocodeAddress(place);
       if (geo) {
         lat = geo.lat; lng = geo.lng;
-      } else if (pinned) {
-        lat = pinned.lat; lng = pinned.lng;
       } else {
         try {
           const { status } = await Location.requestForegroundPermissionsAsync();
@@ -84,19 +150,17 @@ export default function CreateScreen() {
     }
     try {
       const { data: { user } } = await supabase.auth.getUser();
-      let photoUrl: string | null = null;
-      if (photoBase64 && user) {
-        try { photoUrl = await uploadJpeg('event-photos', `${user.id}/${Date.now()}.jpg`, photoBase64); } catch (e) {}
-      }
       const { data: ev } = await supabase.from('events').insert({
         title, category, emoji: categoryEmoji[category] || '📍',
         location: place.trim(),
         lat, lng, people: 1, max_people: parseInt(maxPeople), is_now: mode === 'now',
-        creator_id: user?.id ?? null, photo_url: photoUrl,
+        creator_id: user?.id ?? null, photo_url: null,
+        starts_at: mode === 'later' ? (startsAt.trim() || null) : null,
       }).select('id').single();
-      // Auto-join the creator so people count matches participants.
+      // Auto-join the creator, then upload the photo gallery (which sets the cover).
       if (ev?.id && user) {
         await supabase.from('event_participants').insert({ event_id: ev.id, user_id: user.id });
+        if (photos.length) { try { await addEventPhotos(ev.id, user.id, photos); } catch (e) {} }
       }
       setCreated(true);
     } catch (e) {}
@@ -111,7 +175,7 @@ export default function CreateScreen() {
         <Text style={styles.successEmoji}>🎉</Text>
         <Text style={styles.successTitle}>Event Created!</Text>
         <Text style={styles.successSub}>People nearby will see your event on the map right now</Text>
-        <TouchableOpacity style={styles.successBtn} onPress={() => { setCreated(false); setTitle(''); setCategory(''); setPlace(''); setPinned(null); setAddrEdited(false); setPhotoBase64(null); }}>
+        <TouchableOpacity style={styles.successBtn} onPress={() => { setCreated(false); setTitle(''); setCategory(''); setPlace(''); setPinned(null); setAddrEdited(false); setPhotos([]); setStartsAt(''); }}>
           <Text style={styles.successBtnTxt}>Create Another →</Text>
         </TouchableOpacity>
       </View>
@@ -125,7 +189,7 @@ export default function CreateScreen() {
         <Text style={styles.headerSub}>Tell people what you're up to</Text>
       </View>
 
-      <ScrollView style={styles.form} showsVerticalScrollIndicator={false}>
+      <ScrollView style={styles.form} showsVerticalScrollIndicator={false} scrollEnabled={formScroll}>
 
         {/* Mode toggle */}
         <View style={styles.modeWrap}>
@@ -175,9 +239,31 @@ export default function CreateScreen() {
         {/* Place */}
         <View style={styles.field}>
           <Text style={styles.label}>LOCATION</Text>
+          {mapHtml ? (
+            <View
+              style={styles.miniMap}
+              onStartShouldSetResponderCapture={() => { setFormScroll(false); return false; }}
+              onTouchStart={() => setFormScroll(false)}
+              onTouchEnd={() => setFormScroll(true)}
+              onTouchCancel={() => setFormScroll(true)}
+            >
+              <WebView
+                originWhitelist={['*']}
+                source={{ html: mapHtml }}
+                onMessage={onMapMessage}
+                scrollEnabled={false}
+                nestedScrollEnabled
+                style={{ flex: 1 }}
+              />
+            </View>
+          ) : (
+            <View style={[styles.miniMap, styles.miniMapLoading]}>
+              <ActivityIndicator color="#888" />
+            </View>
+          )}
           <TextInput
-            style={styles.input}
-            placeholder="📍 Address or place name"
+            style={[styles.input, { marginTop: 8 }]}
+            placeholder="📍 Адрес (или поставь точку на карте)"
             placeholderTextColor="#aaa"
             value={place}
             onChangeText={(v) => { setPlace(v); setAddrEdited(true); }}
@@ -187,33 +273,31 @@ export default function CreateScreen() {
               <ActivityIndicator size="small" color="#888" />
               <Text style={styles.locHint}>Определяем адрес точки…</Text>
             </View>
-          ) : pinned && !addrEdited ? (
-            <Text style={styles.locHint}>📍 Точка выбрана на карте — событие закрепится здесь</Text>
+          ) : pinned ? (
+            <Text style={styles.locHint}>📍 Точка выбрана — событие закрепится здесь</Text>
           ) : (
-            <Text style={styles.locHint}>Введи адрес — событие встанет на карте по нему</Text>
+            <Text style={styles.locHint}>Нажми на карту, чтобы поставить точку события</Text>
           )}
         </View>
 
-        {/* Photo */}
+        {/* Photos */}
         <View style={styles.field}>
-          <Text style={styles.label}>PHOTO</Text>
-          {photoBase64 ? (
-            <View>
-              <Image source={{ uri: `data:image/jpeg;base64,${photoBase64}` }} style={styles.photoPreview} contentFit="cover" />
-              <View style={styles.photoActions}>
-                <TouchableOpacity style={styles.photoBtn} onPress={pickEventPhoto}>
-                  <Text style={styles.photoBtnTxt}>Заменить</Text>
-                </TouchableOpacity>
-                <TouchableOpacity style={styles.photoBtn} onPress={() => setPhotoBase64(null)}>
-                  <Text style={styles.photoBtnTxt}>Убрать</Text>
+          <Text style={styles.label}>PHOTOS ({photos.length}/6)</Text>
+          <View style={styles.photoGrid}>
+            {photos.map((b64, i) => (
+              <View key={i} style={styles.thumbWrap}>
+                <Image source={{ uri: `data:image/jpeg;base64,${b64}` }} style={styles.thumb} contentFit="cover" />
+                <TouchableOpacity style={styles.thumbX} onPress={() => setPhotos(prev => prev.filter((_, idx) => idx !== i))}>
+                  <Text style={styles.thumbXTxt}>✕</Text>
                 </TouchableOpacity>
               </View>
-            </View>
-          ) : (
-            <TouchableOpacity style={styles.photoPlaceholder} onPress={pickEventPhoto}>
-              <Text style={styles.photoPlaceholderTxt}>📷 Добавить фото</Text>
-            </TouchableOpacity>
-          )}
+            ))}
+            {photos.length < 6 && (
+              <TouchableOpacity style={styles.thumbAdd} onPress={pickEventPhoto}>
+                <Text style={styles.thumbAddTxt}>＋</Text>
+              </TouchableOpacity>
+            )}
+          </View>
         </View>
 
         {/* Max people */}
@@ -242,8 +326,10 @@ export default function CreateScreen() {
             <Text style={styles.label}>DATE & TIME</Text>
             <TextInput
               style={styles.input}
-              placeholder="e.g. Tomorrow at 18:00"
+              placeholder="напр. Завтра в 18:00"
               placeholderTextColor="#aaa"
+              value={startsAt}
+              onChangeText={setStartsAt}
             />
           </View>
         )}
@@ -278,12 +364,15 @@ const styles = StyleSheet.create({
   label: { fontSize: 11, fontWeight: '700', color: '#888', letterSpacing: 0.5, marginBottom: 8 },
   locHint: { fontSize: 12, color: '#888', marginTop: 6 },
   locHintRow: { flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 6 },
-  photoPreview: { width: '100%', height: 170, borderRadius: 12, backgroundColor: '#eee' },
-  photoActions: { flexDirection: 'row', gap: 8, marginTop: 8 },
-  photoBtn: { paddingHorizontal: 14, paddingVertical: 8, borderRadius: 10, borderWidth: 1.5, borderColor: '#E5E5DF', backgroundColor: '#fff' },
-  photoBtnTxt: { fontSize: 13, fontWeight: '700', color: '#111' },
-  photoPlaceholder: { height: 100, borderRadius: 12, borderWidth: 1.5, borderColor: '#E5E5DF', borderStyle: 'dashed', backgroundColor: '#fff', alignItems: 'center', justifyContent: 'center' },
-  photoPlaceholderTxt: { fontSize: 14, fontWeight: '600', color: '#888' },
+  miniMap: { height: 180, borderRadius: 12, overflow: 'hidden', borderWidth: 1.5, borderColor: '#E5E5DF', backgroundColor: '#e5e5df' },
+  miniMapLoading: { alignItems: 'center', justifyContent: 'center' },
+  photoGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
+  thumbWrap: { width: 84, height: 84, borderRadius: 10, overflow: 'hidden' },
+  thumb: { width: 84, height: 84 },
+  thumbX: { position: 'absolute', top: 2, right: 2, width: 22, height: 22, borderRadius: 11, backgroundColor: 'rgba(17,17,16,0.75)', alignItems: 'center', justifyContent: 'center' },
+  thumbXTxt: { color: '#fff', fontSize: 12, fontWeight: '700' },
+  thumbAdd: { width: 84, height: 84, borderRadius: 10, borderWidth: 1.5, borderColor: '#E5E5DF', borderStyle: 'dashed', backgroundColor: '#fff', alignItems: 'center', justifyContent: 'center' },
+  thumbAddTxt: { fontSize: 28, color: '#888' },
   input: { backgroundColor: '#fff', borderWidth: 1.5, borderColor: '#E5E5DF', borderRadius: 12, padding: 14, fontSize: 15, color: '#111' },
   catGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
   catBtn: { paddingHorizontal: 14, paddingVertical: 10, borderRadius: 12, borderWidth: 1.5, borderColor: '#E5E5DF', backgroundColor: '#fff', alignItems: 'center', gap: 4, minWidth: 72 },
