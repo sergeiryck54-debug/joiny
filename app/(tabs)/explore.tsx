@@ -1,3 +1,4 @@
+import { BlurView } from 'expo-blur';
 import { Image } from 'expo-image';
 import * as Location from 'expo-location';
 import { router, useFocusEffect } from 'expo-router';
@@ -10,7 +11,7 @@ const FILTERS = ['All', '⚽', '🎸', '🧘', '🎲', '🐕'];
 
 function buildMapHtml(location: { lat: number; lng: number }, events: any[]) {
   const markersJs = events
-    .map(e => `L.marker([${e.lat}, ${e.lng}], {icon: L.divIcon({className:'',html:'<div style=\\'background:${e.now ? '#F5C400' : '#111'};color:${e.now ? '#111' : '#fff'};border-radius:12px;padding:4px 6px;font-size:14px;font-weight:700;white-space:nowrap\\'>${e.category} ${e.people}/${e.max}</div>',iconSize:[40,28]})}).addTo(map).on('click', function(){ if(window.ReactNativeWebView){ window.ReactNativeWebView.postMessage(JSON.stringify({type:'event', id:'${e.id}'})); } });`)
+    .map(e => `L.marker([${e.lat}, ${e.lng}], {icon: L.divIcon({className:'',html:'<div style=\\'background:${e.now ? '#2FB6A8' : '#16263F'};color:${e.now ? '#16263F' : '#fff'};border-radius:12px;padding:4px 6px;font-size:14px;font-weight:700;white-space:nowrap\\'>${e.category} ${e.people}/${e.max}</div>',iconSize:[40,28]})}).addTo(map).on('click', function(){ if(window.ReactNativeWebView){ window.ReactNativeWebView.postMessage(JSON.stringify({type:'event', id:'${e.id}'})); } });`)
     .join('\n');
   return `
     <!DOCTYPE html><html><head>
@@ -44,6 +45,9 @@ export default function MapScreen() {
   const [dbEvents, setDbEvents] = useState<any[]>([]);
   const [mapHtml, setMapHtml] = useState('');
   const [userId, setUserId] = useState('');
+  const [likedEvents, setLikedEvents] = useState<string[]>([]);
+  // Map-tap creation is armed only after pressing the Create Event button.
+  const [placing, setPlacing] = useState(false);
 
   const locRef = useRef<{ lat: number; lng: number } | null>(null);
   const sigRef = useRef('');
@@ -54,7 +58,7 @@ export default function MapScreen() {
       const { data } = await supabase.from('events').select('*').order('created_at', { ascending: false });
       const mapped = (data || []).map((e: any) => ({
         id: e.id, title: e.title, category: e.emoji, lat: e.lat, lng: e.lng,
-        people: e.people, max: e.max_people, now: e.is_now, location: e.location, creator: e.creator_id, photo: e.photo_url,
+        people: e.people, max: e.max_people, now: e.is_now, location: e.location, creator: e.creator_id, photo: e.photo_url, likes: e.likes,
       }));
       setDbEvents(mapped);
       // Rebuild the map only when the event set actually changed (avoids reload flicker).
@@ -68,6 +72,8 @@ export default function MapScreen() {
         setUserId(user.id);
         const { data: parts } = await supabase.from('event_participants').select('event_id').eq('user_id', user.id);
         if (parts) setJoined(parts.map((p: any) => p.event_id));
+        const { data: lks } = await supabase.from('event_likes').select('event_id').eq('user_id', user.id);
+        if (lks) setLikedEvents(lks.map((l: any) => l.event_id));
       }
     } catch (e) {}
   }, []);
@@ -155,10 +161,33 @@ export default function MapScreen() {
     ]);
   };
 
+  const toggleEventLike = async (id: string) => {
+    const was = likedEvents.includes(id);
+    setLikedEvents(prev => was ? prev.filter(i => i !== id) : [...prev, id]);
+    setDbEvents(prev => prev.map(e => e.id === id ? { ...e, likes: Math.max(0, (e.likes || 0) + (was ? -1 : 1)) } : e));
+    try {
+      const { data, error } = await supabase.rpc('toggle_event_like', { p_event_id: id });
+      if (error) throw error;
+      const row = Array.isArray(data) ? data[0] : data;
+      if (row) {
+        setDbEvents(prev => prev.map(e => e.id === id ? { ...e, likes: row.likes } : e));
+        setLikedEvents(prev => {
+          const has = prev.includes(id);
+          if (row.liked && !has) return [...prev, id];
+          if (!row.liked && has) return prev.filter(i => i !== id);
+          return prev;
+        });
+      }
+    } catch (e) {
+      setLikedEvents(prev => was ? [...prev, id] : prev.filter(i => i !== id));
+      setDbEvents(prev => prev.map(e => e.id === id ? { ...e, likes: Math.max(0, (e.likes || 0) + (was ? 1 : -1)) } : e));
+    }
+  };
+
   if (loading) {
     return (
       <View style={styles.loading}>
-        <ActivityIndicator size="large" color="#F5C400" />
+        <ActivityIndicator size="large" color="#2FB6A8" />
         <Text style={styles.loadingTxt}>Finding your location...</Text>
       </View>
     );
@@ -177,18 +206,19 @@ export default function MapScreen() {
               const msg = JSON.parse(ev.nativeEvent.data);
               if (msg.type === 'event') {
                 router.push(`/event/${msg.id}` as any);
-              } else if (msg.type === 'mapclick') {
-                Alert.alert('Создать событие здесь?', 'Поставим событие в выбранной точке на карте.', [
-                  { text: 'Отмена', style: 'cancel' },
-                  { text: 'Создать', onPress: () => router.push(`/create?lat=${msg.lat}&lng=${msg.lng}` as any) },
-                ]);
+              } else if (msg.type === 'mapclick' && placing) {
+                // Only create when the user has armed placement via the Create Event button.
+                setPlacing(false);
+                router.push(`/create?lat=${msg.lat}&lng=${msg.lng}` as any);
               }
             } catch (e) {}
           }}
         />
-        <View style={styles.mapHint} pointerEvents="none">
-          <Text style={styles.mapHintTxt}>👆 Нажми на карту, чтобы создать здесь</Text>
-        </View>
+        {placing && (
+          <View style={styles.mapHint} pointerEvents="none">
+            <Text style={styles.mapHintTxt}>👆 Нажми на карту, чтобы поставить событие</Text>
+          </View>
+        )}
       </View>
 
       <View style={styles.statsBar}>
@@ -236,6 +266,9 @@ export default function MapScreen() {
               </View>
             </TouchableOpacity>
             <View style={styles.cardActions}>
+              <TouchableOpacity style={styles.likeBtn} onPress={() => toggleEventLike(event.id)}>
+                <Text style={styles.likeBtnTxt}>{likedEvents.includes(event.id) ? '❤️' : '🤍'} {event.likes || 0}</Text>
+              </TouchableOpacity>
               <TouchableOpacity
                 style={[styles.joinBtn, joined.includes(event.id) && styles.joinBtnDone]}
                 disabled={joining === event.id}
@@ -256,30 +289,34 @@ export default function MapScreen() {
         <View style={{ height: 100 }} />
       </ScrollView>
 
-      <TouchableOpacity style={styles.fab} onPress={() => router.push('/create')}>
-        <Text style={styles.fabTxt}>✦ Create Event</Text>
-      </TouchableOpacity>
+      <View style={styles.fab}>
+        <BlurView intensity={45} tint="light" style={styles.fabBlur}>
+          <TouchableOpacity activeOpacity={0.85} onPress={() => setPlacing(p => !p)} style={styles.fabInner}>
+            <Text style={styles.fabTxt}>{placing ? '✕ Отмена — выбери точку' : '✦ Create Event'}</Text>
+          </TouchableOpacity>
+        </BlurView>
+      </View>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  loading: { flex: 1, backgroundColor: '#111', alignItems: 'center', justifyContent: 'center', gap: 16 },
-  loadingTxt: { color: '#F5C400', fontSize: 16, fontWeight: '600' },
+  loading: { flex: 1, backgroundColor: '#16263F', alignItems: 'center', justifyContent: 'center', gap: 16 },
+  loadingTxt: { color: '#2FB6A8', fontSize: 16, fontWeight: '600' },
   container: { flex: 1, backgroundColor: '#FAFAF7' },
   mapWrap: { height: 240, marginHorizontal: 12, marginTop: 52, borderRadius: 16, overflow: 'hidden', backgroundColor: '#e5e5df' },
   mapHint: { position: 'absolute', bottom: 10, alignSelf: 'center', backgroundColor: 'rgba(17,17,16,0.82)', paddingHorizontal: 12, paddingVertical: 6, borderRadius: 16 },
   mapHintTxt: { color: '#fff', fontSize: 12, fontWeight: '600', textAlign: 'center' },
   statsBar: { flexDirection: 'row', marginHorizontal: 12, marginTop: 10, backgroundColor: '#fff', borderRadius: 12, borderWidth: 1, borderColor: '#E5E5DF', overflow: 'hidden' },
   stat: { flex: 1, padding: 10, alignItems: 'center', borderRightWidth: 1, borderRightColor: '#E5E5DF' },
-  statNum: { fontSize: 18, fontWeight: '800', color: '#111' },
+  statNum: { fontSize: 18, fontWeight: '800', color: '#16263F' },
   statLbl: { fontSize: 10, color: '#888', fontWeight: '600', textTransform: 'uppercase' },
   filters: { marginTop: 10, maxHeight: 44 },
   filtersContent: { paddingHorizontal: 12, gap: 7 },
   ftag: { paddingHorizontal: 14, paddingVertical: 7, borderRadius: 20, borderWidth: 1.5, borderColor: '#E5E5DF', backgroundColor: '#fff' },
-  ftagActive: { backgroundColor: '#111', borderColor: '#111' },
+  ftagActive: { backgroundColor: '#16263F', borderColor: '#16263F' },
   ftagTxt: { fontSize: 12, fontWeight: '600', color: '#888' },
-  ftagTxtActive: { color: '#F5C400' },
+  ftagTxtActive: { color: '#2FB6A8' },
   list: { flex: 1, marginTop: 10, paddingHorizontal: 12 },
   card: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#fff', borderRadius: 14, padding: 12, marginBottom: 10, borderWidth: 1, borderColor: '#E5E5DF' },
   cardMain: { flex: 1, flexDirection: 'row', alignItems: 'center' },
@@ -287,18 +324,22 @@ const styles = StyleSheet.create({
   cardPhoto: { width: 44, height: 44 },
   cardEmoji: { fontSize: 22 },
   cardInfo: { flex: 1 },
-  cardTitle: { fontSize: 14, fontWeight: '700', color: '#111', marginBottom: 3 },
+  cardTitle: { fontSize: 14, fontWeight: '700', color: '#16263F', marginBottom: 3 },
   cardLoc: { fontSize: 12, color: '#888', marginBottom: 3 },
   cardMeta: { fontSize: 12, color: '#888' },
   cardActions: { alignItems: 'flex-end', gap: 6 },
-  joinBtn: { backgroundColor: '#111', paddingHorizontal: 16, paddingVertical: 8, borderRadius: 10, minWidth: 64, alignItems: 'center' },
-  joinBtnDone: { backgroundColor: '#F5C400' },
-  joinTxt: { fontSize: 13, fontWeight: '700', color: '#F5C400' },
-  joinTxtDone: { color: '#111' },
+  likeBtn: { paddingHorizontal: 10, paddingVertical: 5, borderRadius: 10, borderWidth: 1.5, borderColor: '#E5E5DF', minWidth: 64, alignItems: 'center' },
+  likeBtnTxt: { fontSize: 12, fontWeight: '700', color: '#16263F' },
+  joinBtn: { backgroundColor: '#16263F', paddingHorizontal: 16, paddingVertical: 8, borderRadius: 10, minWidth: 64, alignItems: 'center' },
+  joinBtnDone: { backgroundColor: '#2FB6A8' },
+  joinTxt: { fontSize: 13, fontWeight: '700', color: '#2FB6A8' },
+  joinTxtDone: { color: '#16263F' },
   chatBtn: { paddingHorizontal: 12, paddingVertical: 6, borderRadius: 10, borderWidth: 1.5, borderColor: '#E5E5DF', minWidth: 64, alignItems: 'center' },
-  chatBtnTxt: { fontSize: 12, fontWeight: '700', color: '#111' },
+  chatBtnTxt: { fontSize: 12, fontWeight: '700', color: '#16263F' },
   delBtn: { paddingHorizontal: 12, paddingVertical: 6, borderRadius: 10, borderWidth: 1.5, borderColor: '#F3C5C5', backgroundColor: '#FDECEC', minWidth: 64, alignItems: 'center' },
   delBtnTxt: { fontSize: 12, fontWeight: '700', color: '#C0392B' },
-  fab: { position: 'absolute', bottom: 24, alignSelf: 'center', backgroundColor: '#111', paddingHorizontal: 24, paddingVertical: 14, borderRadius: 50, elevation: 8 },
-  fabTxt: { color: '#F5C400', fontSize: 15, fontWeight: '700' },
+  fab: { position: 'absolute', bottom: 24, alignSelf: 'center', borderRadius: 50, overflow: 'hidden', borderWidth: 1, borderColor: 'rgba(255,255,255,0.55)', shadowColor: '#16263F', shadowOpacity: 0.28, shadowRadius: 14, shadowOffset: { width: 0, height: 6 }, elevation: 10 },
+  fabBlur: { },
+  fabInner: { paddingHorizontal: 26, paddingVertical: 14, backgroundColor: 'rgba(47,182,168,0.30)', alignItems: 'center', justifyContent: 'center' },
+  fabTxt: { color: '#0E2A33', fontSize: 15, fontWeight: '800', letterSpacing: 0.3 },
 });

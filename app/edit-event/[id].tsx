@@ -154,7 +154,7 @@ export default function EditEventScreen() {
   const canSave = title.trim().length > 2 && !!category && !!coords;
 
   if (loading) {
-    return <View style={styles.loadingWrap}><ActivityIndicator size="large" color="#F5C400" /></View>;
+    return <View style={styles.loadingWrap}><ActivityIndicator size="large" color="#2FB6A8" /></View>;
   }
 
   const gallery = photos.length ? photos : (coverUrl ? [{ id: null, url: coverUrl }] : []);
@@ -239,7 +239,7 @@ export default function EditEventScreen() {
         )}
 
         <TouchableOpacity style={[styles.saveBtn, (!canSave || saving) && styles.saveBtnOff]} disabled={!canSave || saving} onPress={save}>
-          {saving ? <ActivityIndicator color="#111" /> : <Text style={styles.saveTxt}>Сохранить</Text>}
+          {saving ? <ActivityIndicator color="#16263F" /> : <Text style={styles.saveTxt}>Сохранить</Text>}
         </TouchableOpacity>
         <View style={{ height: 60 }} />
       </ScrollView>
@@ -250,14 +250,14 @@ export default function EditEventScreen() {
 const styles = StyleSheet.create({
   loadingWrap: { flex: 1, backgroundColor: '#FAFAF7', alignItems: 'center', justifyContent: 'center' },
   container: { flex: 1, backgroundColor: '#FAFAF7' },
-  header: { flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: '#111110', paddingTop: 56, paddingBottom: 14, paddingHorizontal: 12 },
+  header: { flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: '#16263F', paddingTop: 56, paddingBottom: 14, paddingHorizontal: 12 },
   backBtn: { width: 36, height: 36, alignItems: 'center', justifyContent: 'center' },
   backTxt: { color: '#fff', fontSize: 34, lineHeight: 34, marginTop: -4 },
   headerTitle: { color: '#fff', fontSize: 18, fontWeight: '800' },
   form: { flex: 1, padding: 18 },
   field: { marginBottom: 20 },
   label: { fontSize: 11, fontWeight: '700', color: '#888', letterSpacing: 0.5, marginBottom: 8 },
-  input: { backgroundColor: '#fff', borderWidth: 1.5, borderColor: '#E5E5DF', borderRadius: 12, padding: 14, fontSize: 15, color: '#111' },
+  input: { backgroundColor: '#fff', borderWidth: 1.5, borderColor: '#E5E5DF', borderRadius: 12, padding: 14, fontSize: 15, color: '#16263F' },
   hint: { fontSize: 12, color: '#888', marginTop: 6 },
   miniMap: { height: 180, borderRadius: 12, overflow: 'hidden', borderWidth: 1.5, borderColor: '#E5E5DF', backgroundColor: '#e5e5df' },
   photoGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
@@ -269,20 +269,20 @@ const styles = StyleSheet.create({
   thumbAddTxt: { fontSize: 28, color: '#888' },
   catGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
   catBtn: { paddingHorizontal: 14, paddingVertical: 10, borderRadius: 12, borderWidth: 1.5, borderColor: '#E5E5DF', backgroundColor: '#fff', alignItems: 'center', gap: 4, minWidth: 72 },
-  catBtnOn: { backgroundColor: '#111', borderColor: '#111' },
+  catBtnOn: { backgroundColor: '#16263F', borderColor: '#16263F' },
   catEmoji: { fontSize: 22 },
   catLabel: { fontSize: 11, fontWeight: '600', color: '#888' },
-  catLabelOn: { color: '#F5C400' },
+  catLabelOn: { color: '#2FB6A8' },
   counterWrap: { flexDirection: 'row', alignItems: 'center', gap: 16 },
   counterBtn: { width: 44, height: 44, borderRadius: 12, backgroundColor: '#fff', borderWidth: 1.5, borderColor: '#E5E5DF', alignItems: 'center', justifyContent: 'center' },
-  counterBtnTxt: { fontSize: 22, fontWeight: '700', color: '#111' },
-  counterVal: { fontSize: 24, fontWeight: '800', color: '#111', minWidth: 40, textAlign: 'center' },
+  counterBtnTxt: { fontSize: 22, fontWeight: '700', color: '#16263F' },
+  counterVal: { fontSize: 24, fontWeight: '800', color: '#16263F', minWidth: 40, textAlign: 'center' },
   modeWrap: { flexDirection: 'row', backgroundColor: '#F2F2EE', borderRadius: 12, padding: 3, marginBottom: 20, borderWidth: 1, borderColor: '#E5E5DF' },
   modeBtn: { flex: 1, padding: 10, borderRadius: 9, alignItems: 'center' },
-  modeBtnOn: { backgroundColor: '#111' },
+  modeBtnOn: { backgroundColor: '#16263F' },
   modeTxt: { fontSize: 13, fontWeight: '600', color: '#888' },
-  modeTxtOn: { color: '#F5C400' },
-  saveBtn: { backgroundColor: '#F5C400', padding: 16, borderRadius: 14, alignItems: 'center', marginTop: 4 },
+  modeTxtOn: { color: '#2FB6A8' },
+  saveBtn: { backgroundColor: '#2FB6A8', padding: 16, borderRadius: 14, alignItems: 'center', marginTop: 4 },
   saveBtnOff: { opacity: 0.4 },
-  saveTxt: { fontSize: 16, fontWeight: '700', color: '#111' },
+  saveTxt: { fontSize: 16, fontWeight: '700', color: '#16263F' },
 });

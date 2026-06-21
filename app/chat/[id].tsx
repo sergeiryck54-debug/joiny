@@ -89,7 +89,7 @@ export default function EventChatScreen() {
 
       {loading ? (
         <View style={styles.loadingWrap}>
-          <ActivityIndicator size="large" color="#F5C400" />
+          <ActivityIndicator size="large" color="#2FB6A8" />
         </View>
       ) : (
         <FlatList
@@ -123,7 +123,7 @@ export default function EventChatScreen() {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#FAFAF7' },
-  header: { flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: '#111110', paddingTop: 56, paddingBottom: 14, paddingHorizontal: 12 },
+  header: { flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: '#16263F', paddingTop: 56, paddingBottom: 14, paddingHorizontal: 12 },
   backBtn: { width: 36, height: 36, alignItems: 'center', justifyContent: 'center' },
   backTxt: { color: '#fff', fontSize: 34, lineHeight: 34, marginTop: -4 },
   headerTitle: { color: '#fff', fontSize: 18, fontWeight: '800' },
@@ -135,14 +135,14 @@ const styles = StyleSheet.create({
   rowMine: { justifyContent: 'flex-end' },
   rowTheirs: { justifyContent: 'flex-start' },
   bubble: { maxWidth: '80%', borderRadius: 16, paddingHorizontal: 13, paddingVertical: 9 },
-  bubbleMine: { backgroundColor: '#F5C400', borderBottomRightRadius: 4 },
+  bubbleMine: { backgroundColor: '#2FB6A8', borderBottomRightRadius: 4 },
   bubbleTheirs: { backgroundColor: '#fff', borderWidth: 1, borderColor: '#E5E5DF', borderBottomLeftRadius: 4 },
-  author: { fontSize: 11, fontWeight: '700', color: '#C49B00', marginBottom: 2 },
+  author: { fontSize: 11, fontWeight: '700', color: '#1E8C80', marginBottom: 2 },
   msgTxt: { fontSize: 15, color: '#222', lineHeight: 20 },
-  msgTxtMine: { color: '#111' },
+  msgTxtMine: { color: '#16263F' },
   composer: { flexDirection: 'row', alignItems: 'flex-end', gap: 8, padding: 10, paddingBottom: 24, borderTopWidth: 1, borderTopColor: '#E5E5DF', backgroundColor: '#fff' },
-  input: { flex: 1, maxHeight: 120, minHeight: 44, backgroundColor: '#F2F2EE', borderRadius: 22, paddingHorizontal: 16, paddingTop: 12, paddingBottom: 12, fontSize: 15, color: '#111' },
-  sendBtn: { width: 44, height: 44, borderRadius: 22, backgroundColor: '#111', alignItems: 'center', justifyContent: 'center' },
+  input: { flex: 1, maxHeight: 120, minHeight: 44, backgroundColor: '#F2F2EE', borderRadius: 22, paddingHorizontal: 16, paddingTop: 12, paddingBottom: 12, fontSize: 15, color: '#16263F' },
+  sendBtn: { width: 44, height: 44, borderRadius: 22, backgroundColor: '#16263F', alignItems: 'center', justifyContent: 'center' },
   sendBtnOff: { opacity: 0.4 },
-  sendTxt: { color: '#F5C400', fontSize: 18 },
+  sendTxt: { color: '#2FB6A8', fontSize: 18 },
 });

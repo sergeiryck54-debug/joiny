@@ -1,7 +1,7 @@
 import { Image } from 'expo-image';
 import { router, useFocusEffect, useLocalSearchParams } from 'expo-router';
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { ActivityIndicator, Alert, Dimensions, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { ActivityIndicator, Alert, Dimensions, Share, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { WebView } from 'react-native-webview';
 import { addEventPhotos, getEventPhotos, pickImagesBase64, removeEventPhoto } from '../lib/photos';
 import { supabase } from '../lib/supabase';
@@ -33,6 +33,10 @@ export default function EventDetailScreen() {
   const [loading, setLoading] = useState(true);
   const [photoBusy, setPhotoBusy] = useState(false);
   const [photos, setPhotos] = useState<any[]>([]);
+  const [liked, setLiked] = useState(false);
+  const [likeBusy, setLikeBusy] = useState(false);
+  const [participants, setParticipants] = useState<any[]>([]);
+  const [showParticipants, setShowParticipants] = useState(false);
 
   const load = async () => {
     try {
@@ -48,6 +52,8 @@ export default function EventDetailScreen() {
       if (user) {
         const { data: part } = await supabase.from('event_participants').select('event_id').eq('event_id', id).eq('user_id', user.id).maybeSingle();
         setJoined(!!part);
+        const { data: lk } = await supabase.from('event_likes').select('event_id').eq('event_id', id).eq('user_id', user.id).maybeSingle();
+        setLiked(!!lk);
       }
     } catch (e) {}
     setLoading(false);
@@ -87,9 +93,51 @@ export default function EventDetailScreen() {
     }
   };
 
+  const toggleLike = async () => {
+    if (likeBusy) return;
+    setLikeBusy(true);
+    const was = liked;
+    setLiked(!was);
+    setEv((e: any) => e ? { ...e, likes: Math.max(0, (e.likes || 0) + (was ? -1 : 1)) } : e);
+    try {
+      const { data, error } = await supabase.rpc('toggle_event_like', { p_event_id: id });
+      if (error) throw error;
+      const row = Array.isArray(data) ? data[0] : data;
+      if (row) { setLiked(row.liked); setEv((e: any) => e ? { ...e, likes: row.likes } : e); }
+    } catch (e) {
+      setLiked(was);
+      setEv((e: any) => e ? { ...e, likes: Math.max(0, (e.likes || 0) + (was ? 1 : -1)) } : e);
+    } finally {
+      setLikeBusy(false);
+    }
+  };
+
+  const toggleParticipants = async () => {
+    const next = !showParticipants;
+    setShowParticipants(next);
+    if (next && participants.length === 0) {
+      const { data: parts } = await supabase.from('event_participants').select('user_id').eq('event_id', id);
+      const ids = (parts || []).map((p: any) => p.user_id);
+      if (ids.length) {
+        const { data: profs } = await supabase.from('profiles').select('id, name, avatar_url').in('id', ids);
+        setParticipants(profs || []);
+      }
+    }
+  };
+
   const openChat = () => {
     if (!joined) { Alert.alert('Сначала присоединись', 'Чат доступен участникам события.'); return; }
     router.push(`/chat/${id}` as any);
+  };
+
+  const shareEvent = async () => {
+    if (!ev) return;
+    const lines = [`${ev.emoji || '📍'} ${ev.title}`];
+    if (ev.location) lines.push(`📍 ${ev.location}`);
+    lines.push(`📅 ${when}`);
+    lines.push(`👥 ${ev.people}/${ev.max_people}`);
+    lines.push(`\nОткрой в Joiny: joinapp://event/${id}`);
+    try { await Share.share({ message: lines.join('\n') }); } catch (e) {}
   };
 
   const addPhotos = async () => {
@@ -161,7 +209,7 @@ export default function EventDetailScreen() {
   if (loading) {
     return (
       <View style={styles.loadingWrap}>
-        <ActivityIndicator size="large" color="#F5C400" />
+        <ActivityIndicator size="large" color="#2FB6A8" />
       </View>
     );
   }
@@ -226,10 +274,35 @@ export default function EventDetailScreen() {
             </View>
           </TouchableOpacity>
 
+          {/* Like */}
+          <TouchableOpacity style={styles.likeRow} onPress={toggleLike} disabled={likeBusy} activeOpacity={0.7}>
+            <Text style={styles.likeHeart}>{liked ? '❤️' : '🤍'}</Text>
+            <Text style={styles.likeCount}>{ev.likes || 0}</Text>
+            <Text style={styles.likeLabel}>{liked ? 'Вам нравится' : 'Нравится'}</Text>
+          </TouchableOpacity>
+
           {/* Info */}
           <View style={styles.infoRow}><Text style={styles.infoIcon}>📅</Text><Text style={styles.infoTxt}>{when}</Text></View>
           {ev.location ? <View style={styles.infoRow}><Text style={styles.infoIcon}>📍</Text><Text style={styles.infoTxt}>{ev.location}</Text></View> : null}
-          <View style={styles.infoRow}><Text style={styles.infoIcon}>👥</Text><Text style={styles.infoTxt}>{ev.people}/{ev.max_people} участников</Text></View>
+          <TouchableOpacity style={styles.infoRow} onPress={toggleParticipants} activeOpacity={0.7}>
+            <Text style={styles.infoIcon}>👥</Text>
+            <Text style={styles.infoTxt}>{ev.people}/{ev.max_people} участников</Text>
+            <Text style={styles.infoChevron}>{showParticipants ? '▲' : '▼'}</Text>
+          </TouchableOpacity>
+          {showParticipants && (
+            <View style={styles.partList}>
+              {participants.length === 0 && <Text style={styles.partEmpty}>Список пуст или загружается…</Text>}
+              {participants.map(p => (
+                <TouchableOpacity key={p.id} style={styles.partItem} onPress={() => router.push(`/user/${p.id}` as any)} activeOpacity={0.7}>
+                  <View style={styles.partAvatar}>
+                    {p.avatar_url ? <Image source={{ uri: p.avatar_url }} style={styles.partAvatarImg} contentFit="cover" /> : <Text style={{ fontSize: 16 }}>🧑</Text>}
+                  </View>
+                  <Text style={styles.partName}>{p.name || 'Аноним'}</Text>
+                  <Text style={styles.chevron}>›</Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+          )}
 
           {/* Map */}
           <View style={styles.miniMap}>
@@ -246,6 +319,11 @@ export default function EventDetailScreen() {
           {/* Chat */}
           <TouchableOpacity style={styles.chatBtn} onPress={openChat}>
             <Text style={styles.chatTxt}>💬 Открыть чат события</Text>
+          </TouchableOpacity>
+
+          {/* Share */}
+          <TouchableOpacity style={styles.chatBtn} onPress={shareEvent}>
+            <Text style={styles.chatTxt}>🔗 Поделиться ссылкой</Text>
           </TouchableOpacity>
 
           {isCreator && (
@@ -270,7 +348,7 @@ const styles = StyleSheet.create({
   loadingWrap: { flex: 1, backgroundColor: '#FAFAF7', alignItems: 'center', justifyContent: 'center', gap: 12 },
   muted: { color: '#888', fontSize: 15 },
   backLink: { padding: 10 },
-  backLinkTxt: { color: '#C49B00', fontWeight: '700' },
+  backLinkTxt: { color: '#1E8C80', fontWeight: '700' },
   backFab: { position: 'absolute', top: 48, left: 14, zIndex: 10, width: 40, height: 40, borderRadius: 20, backgroundColor: 'rgba(17,17,16,0.7)', alignItems: 'center', justifyContent: 'center' },
   backFabTxt: { color: '#fff', fontSize: 30, lineHeight: 30, marginTop: -3 },
   photoWrap: { width: '100%', height: 240, backgroundColor: '#eee' },
@@ -278,35 +356,47 @@ const styles = StyleSheet.create({
   photo: { width: SCREEN_W, height: 240 },
   countBadge: { position: 'absolute', bottom: 10, alignSelf: 'center', backgroundColor: 'rgba(17,17,16,0.7)', paddingHorizontal: 10, paddingVertical: 4, borderRadius: 12 },
   countTxt: { color: '#fff', fontSize: 12, fontWeight: '700', textAlign: 'center' },
-  addMore: { position: 'absolute', bottom: 10, right: 12, width: 38, height: 38, borderRadius: 19, backgroundColor: '#F5C400', alignItems: 'center', justifyContent: 'center' },
-  addMoreTxt: { fontSize: 24, fontWeight: '700', color: '#111' },
+  addMore: { position: 'absolute', bottom: 10, right: 12, width: 38, height: 38, borderRadius: 19, backgroundColor: '#2FB6A8', alignItems: 'center', justifyContent: 'center' },
+  addMoreTxt: { fontSize: 24, fontWeight: '700', color: '#16263F' },
   photoActions: { position: 'absolute', top: 48, right: 12, flexDirection: 'row', gap: 6 },
   photoBtn: { width: 36, height: 36, borderRadius: 18, backgroundColor: 'rgba(17,17,16,0.7)', alignItems: 'center', justifyContent: 'center' },
   photoBtnTxt: { color: '#fff', fontSize: 16 },
   photoOverlay: { ...StyleSheet.absoluteFillObject, alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(0,0,0,0.3)' },
   addPhoto: { margin: 16, marginTop: 56, height: 120, borderRadius: 14, borderWidth: 1.5, borderColor: '#E5E5DF', borderStyle: 'dashed', alignItems: 'center', justifyContent: 'center', backgroundColor: '#fff' },
   addPhotoTxt: { fontSize: 14, fontWeight: '600', color: '#888' },
-  noPhoto: { width: '100%', height: 160, backgroundColor: '#111110', alignItems: 'center', justifyContent: 'center' },
+  noPhoto: { width: '100%', height: 160, backgroundColor: '#16263F', alignItems: 'center', justifyContent: 'center' },
   noPhotoEmoji: { fontSize: 64 },
   body: { padding: 18 },
-  title: { fontSize: 26, fontWeight: '800', color: '#111', marginBottom: 14 },
+  title: { fontSize: 26, fontWeight: '800', color: '#16263F', marginBottom: 14 },
   creatorRow: { flexDirection: 'row', alignItems: 'center', gap: 12, backgroundColor: '#fff', borderRadius: 14, borderWidth: 1, borderColor: '#E5E5DF', padding: 12, marginBottom: 14 },
-  creatorAvatar: { width: 44, height: 44, borderRadius: 22, backgroundColor: '#F5C400', alignItems: 'center', justifyContent: 'center', overflow: 'hidden' },
+  creatorAvatar: { width: 44, height: 44, borderRadius: 22, backgroundColor: '#2FB6A8', alignItems: 'center', justifyContent: 'center', overflow: 'hidden' },
   creatorAvatarImg: { width: 44, height: 44 },
   creatorLabel: { fontSize: 11, color: '#888', fontWeight: '600', textTransform: 'uppercase' },
-  creatorName: { fontSize: 16, fontWeight: '700', color: '#111', marginTop: 1 },
+  creatorName: { fontSize: 16, fontWeight: '700', color: '#16263F', marginTop: 1 },
+  likeRow: { flexDirection: 'row', alignItems: 'center', gap: 8, alignSelf: 'flex-start', backgroundColor: '#fff', borderWidth: 1, borderColor: '#E5E5DF', borderRadius: 22, paddingHorizontal: 14, paddingVertical: 8, marginBottom: 14 },
+  likeHeart: { fontSize: 18 },
+  likeCount: { fontSize: 15, fontWeight: '800', color: '#16263F' },
+  likeLabel: { fontSize: 13, color: '#888', fontWeight: '600' },
   infoRow: { flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 10 },
   infoIcon: { fontSize: 16, width: 22, textAlign: 'center' },
   infoTxt: { fontSize: 15, color: '#333', flex: 1 },
+  infoChevron: { fontSize: 12, color: '#888' },
+  partList: { marginBottom: 12, gap: 6 },
+  partItem: { flexDirection: 'row', alignItems: 'center', gap: 10, backgroundColor: '#fff', borderWidth: 1, borderColor: '#E5E5DF', borderRadius: 12, padding: 8 },
+  partAvatar: { width: 34, height: 34, borderRadius: 17, backgroundColor: '#2FB6A8', alignItems: 'center', justifyContent: 'center', overflow: 'hidden' },
+  partAvatarImg: { width: 34, height: 34 },
+  partName: { flex: 1, fontSize: 14, fontWeight: '600', color: '#16263F' },
+  partEmpty: { fontSize: 13, color: '#888' },
+  chevron: { fontSize: 20, color: '#ccc' },
   miniMap: { height: 160, borderRadius: 14, overflow: 'hidden', marginTop: 8, marginBottom: 18, borderWidth: 1, borderColor: '#E5E5DF', backgroundColor: '#e5e5df' },
-  joinBtn: { backgroundColor: '#F5C400', padding: 16, borderRadius: 14, alignItems: 'center', marginBottom: 10 },
-  joinBtnDone: { backgroundColor: '#111' },
-  joinTxt: { fontSize: 16, fontWeight: '800', color: '#111' },
-  joinTxtDone: { color: '#F5C400' },
+  joinBtn: { backgroundColor: '#2FB6A8', padding: 16, borderRadius: 14, alignItems: 'center', marginBottom: 10 },
+  joinBtnDone: { backgroundColor: '#16263F' },
+  joinTxt: { fontSize: 16, fontWeight: '800', color: '#16263F' },
+  joinTxtDone: { color: '#2FB6A8' },
   chatBtn: { padding: 14, borderRadius: 14, alignItems: 'center', borderWidth: 1.5, borderColor: '#E5E5DF', backgroundColor: '#fff', marginBottom: 10 },
-  chatTxt: { fontSize: 15, fontWeight: '700', color: '#111' },
-  editBtn: { padding: 14, borderRadius: 14, alignItems: 'center', backgroundColor: '#111', marginBottom: 10 },
-  editTxt: { fontSize: 15, fontWeight: '700', color: '#F5C400' },
+  chatTxt: { fontSize: 15, fontWeight: '700', color: '#16263F' },
+  editBtn: { padding: 14, borderRadius: 14, alignItems: 'center', backgroundColor: '#16263F', marginBottom: 10 },
+  editTxt: { fontSize: 15, fontWeight: '700', color: '#2FB6A8' },
   delBtn: { padding: 14, borderRadius: 14, alignItems: 'center', backgroundColor: '#FDECEC', marginTop: 4 },
   delTxt: { fontSize: 14, fontWeight: '700', color: '#C0392B' },
 });

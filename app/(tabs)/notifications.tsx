@@ -26,7 +26,7 @@ export default function NotificationsScreen() {
       const { data: evts } = await supabase.from('events').select('*').order('created_at', { ascending: false }).limit(15);
       const { data: psts } = await supabase.from('posts').select('*').order('created_at', { ascending: false }).limit(15);
       const eItems = (evts || []).map((e: any) => ({
-        id: 'e' + e.id, type: 'event', emoji: e.emoji || '📍', bg: '#FFF6D6',
+        id: 'e' + e.id, type: 'event', emoji: e.emoji || '📍', bg: '#D9F4EF',
         text: `New event nearby — "${e.title}" · ${e.people}/${e.max_people} people`,
         time: timeAgo(e.created_at), created: e.created_at, eventId: e.id, creator: e.creator_id,
       }));
@@ -89,7 +89,7 @@ export default function NotificationsScreen() {
   if (loading) {
     return (
       <View style={styles.loadingWrap}>
-        <ActivityIndicator size="large" color="#F5C400" />
+        <ActivityIndicator size="large" color="#2FB6A8" />
       </View>
     );
   }
@@ -150,22 +150,22 @@ const styles = StyleSheet.create({
   loadingWrap: { flex: 1, backgroundColor: '#FAFAF7', alignItems: 'center', justifyContent: 'center' },
   container: { flex: 1, backgroundColor: '#FAFAF7' },
   header: { padding: 18, paddingTop: 56 },
-  title: { fontSize: 26, fontWeight: '800', color: '#111' },
+  title: { fontSize: 26, fontWeight: '800', color: '#16263F' },
   tabs: { flexDirection: 'row', borderBottomWidth: 2, borderBottomColor: '#E5E5DF', paddingHorizontal: 18 },
   tab: { paddingVertical: 11, paddingHorizontal: 14, borderBottomWidth: 2.5, borderBottomColor: 'transparent', marginBottom: -2 },
-  tabOn: { borderBottomColor: '#F5C400' },
+  tabOn: { borderBottomColor: '#2FB6A8' },
   tabTxt: { fontSize: 12, fontWeight: '700', color: '#888', textTransform: 'uppercase' },
-  tabTxtOn: { color: '#111' },
+  tabTxtOn: { color: '#16263F' },
   item: { flexDirection: 'row', alignItems: 'flex-start', gap: 12, padding: 16, borderBottomWidth: 1, borderBottomColor: '#E5E5DF' },
   avatar: { width: 44, height: 44, borderRadius: 22, alignItems: 'center', justifyContent: 'center' },
   avatarEmoji: { fontSize: 22 },
   notifText: { fontSize: 14, color: '#333', lineHeight: 20, marginBottom: 6 },
   viewBtn: { alignSelf: 'flex-start', marginBottom: 6 },
-  viewBtnTxt: { fontSize: 13, fontWeight: '700', color: '#C49B00' },
+  viewBtnTxt: { fontSize: 13, fontWeight: '700', color: '#1E8C80' },
   delLinkTxt: { fontSize: 13, fontWeight: '700', color: '#C0392B' },
   time: { fontSize: 11, color: '#aaa' },
   empty: { alignItems: 'center', paddingTop: 60, gap: 10 },
   emptyIcon: { fontSize: 52 },
-  emptyTitle: { fontSize: 20, fontWeight: '800', color: '#111' },
+  emptyTitle: { fontSize: 20, fontWeight: '800', color: '#16263F' },
   emptySub: { fontSize: 14, color: '#888' },
 });

@@ -22,8 +22,8 @@ export default function TabLayout() {
   // Never render the tabs without a session.
   if (authed !== true) {
     return (
-      <View style={{ flex: 1, backgroundColor: '#111110', alignItems: 'center', justifyContent: 'center' }}>
-        <ActivityIndicator size="large" color="#F5C400" />
+      <View style={{ flex: 1, backgroundColor: '#16263F', alignItems: 'center', justifyContent: 'center' }}>
+        <ActivityIndicator size="large" color="#2FB6A8" />
       </View>
     );
   }
@@ -31,7 +31,7 @@ export default function TabLayout() {
   return (
     <Tabs
       screenOptions={{
-        tabBarActiveTintColor: '#F5C400',
+        tabBarActiveTintColor: '#2FB6A8',
         tabBarInactiveTintColor: '#888',
         tabBarStyle: {
           backgroundColor: '#fff',
