@@ -4,11 +4,13 @@ import * as ImagePicker from 'expo-image-picker';
 import { router, useFocusEffect } from 'expo-router';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { ActivityIndicator, Alert, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import { useI18n } from '../lib/i18n';
 import { supabase } from '../lib/supabase';
 
 const ALL_INTERESTS = ['⚽ Sport', '🎸 Music', '🏃 Running', '📸 Photo', '🐕 Dog Walks', '🎲 Board Games', '🍕 Food', '📚 Books', '🧘 Yoga', '🎨 Art'];
 
 export default function ProfileScreen() {
+  const { t } = useI18n();
   const [email, setEmail] = useState('');
   const [userId, setUserId] = useState('');
   const [name, setName] = useState('');
@@ -121,24 +123,24 @@ export default function ProfileScreen() {
       await supabase.from('profiles').upsert({ id: userId, avatar_url: url });
       setAvatarUrl(url);
     } catch (e) {
-      Alert.alert('Не удалось загрузить', 'Попробуй ещё раз.');
+      Alert.alert(t('profile.uploadFail'), t('common.tryAgain'));
     } finally {
       setUploadingAvatar(false);
     }
   };
 
   const deleteEvent = (id: string) => {
-    Alert.alert('Удалить событие?', 'Событие и его чат удалятся для всех. Это необратимо.', [
-      { text: 'Отмена', style: 'cancel' },
+    Alert.alert(t('map.delQ'), t('map.delMsg'), [
+      { text: t('common.cancel'), style: 'cancel' },
       {
-        text: 'Удалить', style: 'destructive', onPress: async () => {
+        text: t('common.delete'), style: 'destructive', onPress: async () => {
           try {
             const { error } = await supabase.rpc('delete_event', { p_event_id: id });
             if (error) throw error;
             setMyEvents(prev => prev.filter(e => e.id !== id));
             setJoinedEvents(prev => prev.filter(e => e.id !== id));
           } catch (e) {
-            Alert.alert('Не удалось удалить', 'Попробуй ещё раз.');
+            Alert.alert(t('map.delFail'), t('common.tryAgain'));
           }
         },
       },
@@ -150,7 +152,7 @@ export default function ProfileScreen() {
       const { error } = await supabase.from('friendships').update({ status: 'accepted' }).eq('user_id', requesterId).eq('friend_id', userId);
       if (error) throw error;
       await loadLists(userId);
-    } catch (e) { Alert.alert('Не удалось', 'Попробуй ещё раз.'); }
+    } catch (e) { Alert.alert(t('common.failed'), t('common.tryAgain')); }
   };
 
   const declineRequest = async (requesterId: string) => {
@@ -171,7 +173,7 @@ export default function ProfileScreen() {
         <View style={{ flex: 1 }}>
           <Text style={styles.eventTitle}>{e.title}</Text>
           {e.location ? <Text style={styles.eventMeta} numberOfLines={1}>📍 {e.location}</Text> : null}
-          <Text style={styles.eventMeta}>👥 {e.people}/{e.max_people} · ❤️ {e.likes || 0} · {e.is_now ? '🟢 Now' : '🕐 Later'}</Text>
+          <Text style={styles.eventMeta}>👥 {e.people}/{e.max_people} · ❤️ {e.likes || 0} · {e.is_now ? t('common.now') : t('common.later')}</Text>
         </View>
       </TouchableOpacity>
       {withDelete
@@ -196,24 +198,24 @@ export default function ProfileScreen() {
           )}
         </TouchableOpacity>
         <TouchableOpacity onPress={pickAvatar} disabled={uploadingAvatar} style={styles.changePhotoBtn}>
-          <Text style={styles.changePhotoTxt}>{uploadingAvatar ? 'Загрузка…' : avatarUrl ? 'Сменить фото' : 'Добавить фото'}</Text>
+          <Text style={styles.changePhotoTxt}>{uploadingAvatar ? t('common.uploading') : avatarUrl ? t('profile.changePhoto') : t('profile.addPhoto')}</Text>
         </TouchableOpacity>
         {editing ? (
           <>
-            <TextInput style={styles.editInput} placeholder="Your name" placeholderTextColor="rgba(255,255,255,0.3)" value={name} onChangeText={setName} />
-            <TextInput style={styles.editInput} placeholder="Bio" placeholderTextColor="rgba(255,255,255,0.3)" value={bio} onChangeText={setBio} />
-            <TextInput style={styles.editInput} placeholder="City" placeholderTextColor="rgba(255,255,255,0.3)" value={city} onChangeText={setCity} />
+            <TextInput style={styles.editInput} placeholder={t('profile.namePh')} placeholderTextColor="rgba(255,255,255,0.3)" value={name} onChangeText={setName} />
+            <TextInput style={styles.editInput} placeholder={t('profile.bioPh')} placeholderTextColor="rgba(255,255,255,0.3)" value={bio} onChangeText={setBio} />
+            <TextInput style={styles.editInput} placeholder={t('profile.cityPh')} placeholderTextColor="rgba(255,255,255,0.3)" value={city} onChangeText={setCity} />
             <TouchableOpacity style={styles.saveBtn} onPress={saveProfile} disabled={saving}>
-              {saving ? <ActivityIndicator color="#16263F" /> : <Text style={styles.saveBtnTxt}>Save</Text>}
+              {saving ? <ActivityIndicator color="#16263F" /> : <Text style={styles.saveBtnTxt}>{t('common.save')}</Text>}
             </TouchableOpacity>
           </>
         ) : (
           <>
-            <Text style={styles.name}>{name || 'Set your name'}</Text>
-            <Text style={styles.bio}>{bio || 'Add a short bio'}</Text>
-            <Text style={styles.location}>📍 {city || 'Your city'} · {email}</Text>
+            <Text style={styles.name}>{name || t('profile.setName')}</Text>
+            <Text style={styles.bio}>{bio || t('profile.addBio')}</Text>
+            <Text style={styles.location}>📍 {city || t('profile.yourCity')} · {email}</Text>
             <TouchableOpacity style={styles.editBtn} onPress={() => setEditing(true)}>
-              <Text style={styles.editTxt}>✏ Edit Profile</Text>
+              <Text style={styles.editTxt}>{t('profile.edit')}</Text>
             </TouchableOpacity>
           </>
         )}
@@ -223,15 +225,15 @@ export default function ProfileScreen() {
       <View style={styles.stats}>
         <TouchableOpacity style={[styles.stat, tab === 'events' && styles.statOn]} onPress={() => setTab('events')}>
           <Text style={styles.statN}>{myEvents.length}</Text>
-          <Text style={styles.statL}>Events</Text>
+          <Text style={styles.statL}>{t('profile.statEvents')}</Text>
         </TouchableOpacity>
         <TouchableOpacity style={[styles.stat, styles.statBorder, tab === 'joined' && styles.statOn]} onPress={() => setTab('joined')}>
           <Text style={styles.statN}>{joinedEvents.length}</Text>
-          <Text style={styles.statL}>Joined</Text>
+          <Text style={styles.statL}>{t('profile.statJoined')}</Text>
         </TouchableOpacity>
         <TouchableOpacity style={[styles.stat, styles.statBorder, tab === 'friends' && styles.statOn]} onPress={() => setTab('friends')}>
           <Text style={styles.statN}>{friends.length}</Text>
-          <Text style={styles.statL}>Friends</Text>
+          <Text style={styles.statL}>{t('profile.statFriends')}</Text>
           {friendRequests.length > 0 && <View style={styles.reqDot}><Text style={styles.reqDotTxt}>{friendRequests.length}</Text></View>}
         </TouchableOpacity>
       </View>
@@ -240,15 +242,15 @@ export default function ProfileScreen() {
       <View style={styles.section}>
         {tab === 'events' && (
           <>
-            <Text style={styles.sectionTitle}>My Events</Text>
-            {myEvents.length === 0 && <Text style={styles.empty}>Нет своих событий — создай первое!</Text>}
+            <Text style={styles.sectionTitle}>{t('profile.myEvents')}</Text>
+            {myEvents.length === 0 && <Text style={styles.empty}>{t('profile.noEvents')}</Text>}
             {myEvents.map(e => renderEvent(e, true))}
           </>
         )}
         {tab === 'joined' && (
           <>
-            <Text style={styles.sectionTitle}>Joined</Text>
-            {joinedEvents.length === 0 && <Text style={styles.empty}>Ты пока никуда не вступил</Text>}
+            <Text style={styles.sectionTitle}>{t('profile.joinedTitle')}</Text>
+            {joinedEvents.length === 0 && <Text style={styles.empty}>{t('profile.noJoined')}</Text>}
             {joinedEvents.map(e => renderEvent(e, false))}
           </>
         )}
@@ -256,7 +258,7 @@ export default function ProfileScreen() {
           <>
             {friendRequests.length > 0 && (
               <>
-                <Text style={styles.sectionTitle}>Заявки в друзья ({friendRequests.length})</Text>
+                <Text style={styles.sectionTitle}>{t('profile.requests', { n: friendRequests.length })}</Text>
                 {friendRequests.map(r => (
                   <View key={r.id} style={styles.eventCard}>
                     <TouchableOpacity style={styles.eventMain} onPress={() => router.push(`/user/${r.id}` as any)} activeOpacity={0.7}>
@@ -264,8 +266,8 @@ export default function ProfileScreen() {
                         {r.avatar_url ? <Image source={{ uri: r.avatar_url }} style={styles.friendAvatarImg} contentFit="cover" /> : <Text style={{ fontSize: 18 }}>🧑</Text>}
                       </View>
                       <View style={{ flex: 1 }}>
-                        <Text style={styles.eventTitle}>{r.name || 'Аноним'}</Text>
-                        <Text style={styles.eventMeta}>хочет добавить тебя в друзья</Text>
+                        <Text style={styles.eventTitle}>{r.name || t('common.anon')}</Text>
+                        <Text style={styles.eventMeta}>{t('profile.wantsFriend')}</Text>
                       </View>
                     </TouchableOpacity>
                     <TouchableOpacity style={styles.acceptBtn} onPress={() => acceptRequest(r.id)}><Text style={styles.acceptTxt}>✓</Text></TouchableOpacity>
@@ -275,15 +277,15 @@ export default function ProfileScreen() {
                 <View style={{ height: 12 }} />
               </>
             )}
-            <Text style={styles.sectionTitle}>Friends</Text>
-            {friends.length === 0 && <Text style={styles.empty}>Пока нет друзей</Text>}
+            <Text style={styles.sectionTitle}>{t('profile.friendsTitle')}</Text>
+            {friends.length === 0 && <Text style={styles.empty}>{t('profile.noFriends')}</Text>}
             {friends.map(f => (
               <TouchableOpacity key={f.id} style={styles.eventCard} onPress={() => router.push(`/user/${f.id}` as any)} activeOpacity={0.7}>
                 <View style={styles.friendAvatar}>
                   {f.avatar_url ? <Image source={{ uri: f.avatar_url }} style={styles.friendAvatarImg} contentFit="cover" /> : <Text style={{ fontSize: 18 }}>🧑</Text>}
                 </View>
                 <View style={{ flex: 1 }}>
-                  <Text style={styles.eventTitle}>{f.name || 'Аноним'}</Text>
+                  <Text style={styles.eventTitle}>{f.name || t('common.anon')}</Text>
                   {f.city ? <Text style={styles.eventMeta}>📍 {f.city}</Text> : null}
                 </View>
                 <Text style={styles.chevron}>›</Text>
@@ -295,7 +297,7 @@ export default function ProfileScreen() {
 
       {/* Interests editor */}
       <View style={styles.section}>
-        <Text style={styles.sectionTitle}>My Interests</Text>
+        <Text style={styles.sectionTitle}>{t('profile.interests')}</Text>
         <View style={styles.tagsWrap}>
           {ALL_INTERESTS.map(tag => (
             <TouchableOpacity key={tag} style={[styles.tag, interests.includes(tag) && styles.tagOn]} onPress={() => toggleInterest(tag)}>
@@ -304,12 +306,12 @@ export default function ProfileScreen() {
           ))}
         </View>
         <TouchableOpacity style={styles.saveInterests} onPress={saveProfile} disabled={saving}>
-          <Text style={styles.saveInterestsTxt}>{saving ? 'Saving...' : 'Save interests'}</Text>
+          <Text style={styles.saveInterestsTxt}>{saving ? t('profile.saving') : t('profile.saveInterests')}</Text>
         </TouchableOpacity>
       </View>
 
       <TouchableOpacity style={styles.signOut} onPress={async () => { await supabase.auth.signOut({ scope: 'global' }); router.replace('/'); }}>
-        <Text style={styles.signOutTxt}>Sign Out</Text>
+        <Text style={styles.signOutTxt}>{t('profile.signOut')}</Text>
       </TouchableOpacity>
       <View style={{ height: 100 }} />
     </ScrollView>

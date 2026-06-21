@@ -5,6 +5,7 @@ import { useEffect, useState } from 'react';
 import { ActivityIndicator, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { WebView } from 'react-native-webview';
 import { geocodeAddress, reverseGeocode } from '../lib/geocode';
+import { useI18n } from '../lib/i18n';
 import { addEventPhotos, pickImagesBase64 } from '../lib/photos';
 import { supabase } from '../lib/supabase';
 
@@ -44,6 +45,7 @@ function buildPickerHtml(center: { lat: number; lng: number }, pin: { lat: numbe
 }
 
 export default function CreateScreen() {
+  const { t } = useI18n();
   const params = useLocalSearchParams<{ lat?: string; lng?: string }>();
   const [mode, setMode] = useState<'now' | 'later'>('now');
   const [title, setTitle] = useState('');
@@ -173,10 +175,10 @@ export default function CreateScreen() {
     return (
       <View style={styles.successWrap}>
         <Text style={styles.successEmoji}>🎉</Text>
-        <Text style={styles.successTitle}>Event Created!</Text>
-        <Text style={styles.successSub}>People nearby will see your event on the map right now</Text>
+        <Text style={styles.successTitle}>{t('create.doneTitle')}</Text>
+        <Text style={styles.successSub}>{t('create.doneSub')}</Text>
         <TouchableOpacity style={styles.successBtn} onPress={() => { setCreated(false); setTitle(''); setCategory(''); setPlace(''); setPinned(null); setAddrEdited(false); setPhotos([]); setStartsAt(''); }}>
-          <Text style={styles.successBtnTxt}>Create Another →</Text>
+          <Text style={styles.successBtnTxt}>{t('create.another')}</Text>
         </TouchableOpacity>
       </View>
     );
@@ -185,8 +187,8 @@ export default function CreateScreen() {
   return (
     <View style={styles.container}>
       <View style={styles.header}>
-        <Text style={styles.headerTitle}>New Event</Text>
-        <Text style={styles.headerSub}>Tell people what you're up to</Text>
+        <Text style={styles.headerTitle}>{t('create.header')}</Text>
+        <Text style={styles.headerSub}>{t('create.headerSub')}</Text>
       </View>
 
       <ScrollView style={styles.form} showsVerticalScrollIndicator={false} scrollEnabled={formScroll}>
@@ -197,22 +199,22 @@ export default function CreateScreen() {
             style={[styles.modeBtn, mode === 'now' && styles.modeBtnOn]}
             onPress={() => setMode('now')}
           >
-            <Text style={[styles.modeTxt, mode === 'now' && styles.modeTxtOn]}>⚡ Right Now</Text>
+            <Text style={[styles.modeTxt, mode === 'now' && styles.modeTxtOn]}>{t('create.rightNow')}</Text>
           </TouchableOpacity>
           <TouchableOpacity
             style={[styles.modeBtn, mode === 'later' && styles.modeBtnOn]}
             onPress={() => setMode('later')}
           >
-            <Text style={[styles.modeTxt, mode === 'later' && styles.modeTxtOn]}>📅 Plan Ahead</Text>
+            <Text style={[styles.modeTxt, mode === 'later' && styles.modeTxtOn]}>{t('create.planAhead')}</Text>
           </TouchableOpacity>
         </View>
 
         {/* Title */}
         <View style={styles.field}>
-          <Text style={styles.label}>EVENT NAME</Text>
+          <Text style={styles.label}>{t('create.eventName')}</Text>
           <TextInput
             style={styles.input}
-            placeholder="e.g. Football in the park..."
+            placeholder={t('create.eventNamePh')}
             placeholderTextColor="#aaa"
             value={title}
             onChangeText={setTitle}
@@ -221,7 +223,7 @@ export default function CreateScreen() {
 
         {/* Category */}
         <View style={styles.field}>
-          <Text style={styles.label}>CATEGORY</Text>
+          <Text style={styles.label}>{t('create.category')}</Text>
           <View style={styles.catGrid}>
             {CATEGORIES.map(c => (
               <TouchableOpacity
@@ -230,7 +232,7 @@ export default function CreateScreen() {
                 onPress={() => setCategory(c.label)}
               >
                 <Text style={styles.catEmoji}>{c.emoji}</Text>
-                <Text style={[styles.catLabel, category === c.label && styles.catLabelOn]}>{c.label}</Text>
+                <Text style={[styles.catLabel, category === c.label && styles.catLabelOn]}>{t('cat.' + c.label)}</Text>
               </TouchableOpacity>
             ))}
           </View>
@@ -238,7 +240,7 @@ export default function CreateScreen() {
 
         {/* Place */}
         <View style={styles.field}>
-          <Text style={styles.label}>LOCATION</Text>
+          <Text style={styles.label}>{t('create.location')}</Text>
           {mapHtml ? (
             <View
               style={styles.miniMap}
@@ -263,7 +265,7 @@ export default function CreateScreen() {
           )}
           <TextInput
             style={[styles.input, { marginTop: 8 }]}
-            placeholder="📍 Адрес (или поставь точку на карте)"
+            placeholder={t('create.addressPh')}
             placeholderTextColor="#aaa"
             value={place}
             onChangeText={(v) => { setPlace(v); setAddrEdited(true); }}
@@ -271,18 +273,18 @@ export default function CreateScreen() {
           {resolvingAddr ? (
             <View style={styles.locHintRow}>
               <ActivityIndicator size="small" color="#888" />
-              <Text style={styles.locHint}>Определяем адрес точки…</Text>
+              <Text style={styles.locHint}>{t('create.resolving')}</Text>
             </View>
           ) : pinned ? (
-            <Text style={styles.locHint}>📍 Точка выбрана — событие закрепится здесь</Text>
+            <Text style={styles.locHint}>{t('create.pointChosen')}</Text>
           ) : (
-            <Text style={styles.locHint}>Нажми на карту, чтобы поставить точку события</Text>
+            <Text style={styles.locHint}>{t('create.tapMapHint')}</Text>
           )}
         </View>
 
         {/* Photos */}
         <View style={styles.field}>
-          <Text style={styles.label}>PHOTOS ({photos.length}/6)</Text>
+          <Text style={styles.label}>{t('create.photos')} ({photos.length}/6)</Text>
           <View style={styles.photoGrid}>
             {photos.map((b64, i) => (
               <View key={i} style={styles.thumbWrap}>
@@ -302,7 +304,7 @@ export default function CreateScreen() {
 
         {/* Max people */}
         <View style={styles.field}>
-          <Text style={styles.label}>MAX PEOPLE</Text>
+          <Text style={styles.label}>{t('create.maxPeople')}</Text>
           <View style={styles.counterWrap}>
             <TouchableOpacity
               style={styles.counterBtn}
@@ -323,10 +325,10 @@ export default function CreateScreen() {
         {/* Time (only for later) */}
         {mode === 'later' && (
           <View style={styles.field}>
-            <Text style={styles.label}>DATE & TIME</Text>
+            <Text style={styles.label}>{t('create.dateTime')}</Text>
             <TextInput
               style={styles.input}
-              placeholder="напр. Завтра в 18:00"
+              placeholder={t('create.dateTimePh')}
               placeholderTextColor="#aaa"
               value={startsAt}
               onChangeText={setStartsAt}
@@ -340,7 +342,7 @@ export default function CreateScreen() {
           disabled={!canCreate || saving}
           onPress={publishEvent}
         >
-          <Text style={styles.createBtnTxt}>✦ Publish Event</Text>
+          <Text style={styles.createBtnTxt}>{t('create.publish')}</Text>
         </TouchableOpacity>
 
         <View style={{ height: 100 }} />

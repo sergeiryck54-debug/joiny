@@ -1,9 +1,11 @@
 import { router, useLocalSearchParams } from 'expo-router';
 import { useEffect, useRef, useState } from 'react';
 import { ActivityIndicator, FlatList, KeyboardAvoidingView, Platform, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import { useI18n } from '../lib/i18n';
 import { supabase } from '../lib/supabase';
 
 export default function EventChatScreen() {
+  const { t } = useI18n();
   const { id } = useLocalSearchParams<{ id: string }>();
   const [messages, setMessages] = useState<any[]>([]);
   const [text, setText] = useState('');
@@ -83,7 +85,7 @@ export default function EventChatScreen() {
         </TouchableOpacity>
         <View style={{ flex: 1 }}>
           <Text style={styles.headerTitle} numberOfLines={1}>{emoji} {title}</Text>
-          <Text style={styles.headerSub}>Event chat · participants only</Text>
+          <Text style={styles.headerSub}>{t('chat.sub')}</Text>
         </View>
       </View>
 
@@ -100,14 +102,14 @@ export default function EventChatScreen() {
           contentContainerStyle={styles.listContent}
           onContentSizeChange={() => listRef.current?.scrollToEnd({ animated: true })}
           onLayout={() => listRef.current?.scrollToEnd({ animated: false })}
-          ListEmptyComponent={<Text style={styles.empty}>No messages yet — say hi 👋</Text>}
+          ListEmptyComponent={<Text style={styles.empty}>{t('chat.empty')}</Text>}
         />
       )}
 
       <View style={styles.composer}>
         <TextInput
           style={styles.input}
-          placeholder="Message…"
+          placeholder={t('chat.ph')}
           placeholderTextColor="#aaa"
           value={text}
           onChangeText={setText}

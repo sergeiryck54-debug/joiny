@@ -1,11 +1,14 @@
 import { router, useFocusEffect } from 'expo-router';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { ActivityIndicator, Alert, RefreshControl, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { useI18n } from '../lib/i18n';
 import { supabase } from '../lib/supabase';
 
 const TABS = ['All', 'Events', 'Posts'];
+const TAB_KEY: Record<string, string> = { All: 'notif.all', Events: 'notif.events', Posts: 'notif.posts' };
 
 export default function NotificationsScreen() {
+  const { t } = useI18n();
   const [activeTab, setActiveTab] = useState('All');
   const [items, setItems] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -14,11 +17,11 @@ export default function NotificationsScreen() {
 
   const timeAgo = (iso: string) => {
     const mins = Math.floor((Date.now() - new Date(iso).getTime()) / 60000);
-    if (mins < 1) return 'just now';
-    if (mins < 60) return `${mins} min ago`;
+    if (mins < 1) return t('time.now');
+    if (mins < 60) return t('time.min', { n: mins });
     const hrs = Math.floor(mins / 60);
-    if (hrs < 24) return `${hrs}h ago`;
-    return `${Math.floor(hrs / 24)}d ago`;
+    if (hrs < 24) return t('time.hour', { n: hrs });
+    return t('time.day', { n: Math.floor(hrs / 24) });
   };
 
   const fetchAll = async () => {
@@ -27,12 +30,12 @@ export default function NotificationsScreen() {
       const { data: psts } = await supabase.from('posts').select('*').order('created_at', { ascending: false }).limit(15);
       const eItems = (evts || []).map((e: any) => ({
         id: 'e' + e.id, type: 'event', emoji: e.emoji || '📍', bg: '#D9F4EF',
-        text: `New event nearby — "${e.title}" · ${e.people}/${e.max_people} people`,
+        text: t('notif.newEvent', { title: e.title, people: e.people, max: e.max_people }),
         time: timeAgo(e.created_at), created: e.created_at, eventId: e.id, creator: e.creator_id,
       }));
       const pItems = (psts || []).map((p: any) => ({
         id: 'p' + p.id, type: 'post', emoji: p.emoji || '💬', bg: p.bg_color || '#F2F2EE',
-        text: `${p.user_name} posted: "${(p.caption || '').slice(0, 80)}${(p.caption || '').length > 80 ? '...' : ''}"`,
+        text: t('notif.posted', { user: p.user_name, text: `${(p.caption || '').slice(0, 80)}${(p.caption || '').length > 80 ? '...' : ''}` }),
         time: timeAgo(p.created_at), created: p.created_at,
       }));
       const all = [...eItems, ...pItems].sort((a, b) => new Date(b.created).getTime() - new Date(a.created).getTime());
@@ -57,16 +60,16 @@ export default function NotificationsScreen() {
   }, []));
 
   const deleteEvent = (eventId: string) => {
-    Alert.alert('Удалить событие?', 'Событие и его чат удалятся для всех. Это необратимо.', [
-      { text: 'Отмена', style: 'cancel' },
+    Alert.alert(t('map.delQ'), t('map.delMsg'), [
+      { text: t('common.cancel'), style: 'cancel' },
       {
-        text: 'Удалить', style: 'destructive', onPress: async () => {
+        text: t('common.delete'), style: 'destructive', onPress: async () => {
           try {
             const { error } = await supabase.rpc('delete_event', { p_event_id: eventId });
             if (error) throw error;
             setItems(prev => prev.filter(i => i.eventId !== eventId));
           } catch (e) {
-            Alert.alert('Не удалось удалить', 'Попробуй ещё раз.');
+            Alert.alert(t('map.delFail'), t('common.tryAgain'));
           }
         },
       },
@@ -97,13 +100,13 @@ export default function NotificationsScreen() {
   return (
     <View style={styles.container}>
       <View style={styles.header}>
-        <Text style={styles.title}>Notifications</Text>
+        <Text style={styles.title}>{t('notif.title')}</Text>
       </View>
 
       <View style={styles.tabs}>
         {TABS.map(tab => (
           <TouchableOpacity key={tab} style={[styles.tab, activeTab === tab && styles.tabOn]} onPress={() => setActiveTab(tab)}>
-            <Text style={[styles.tabTxt, activeTab === tab && styles.tabTxtOn]}>{tab}</Text>
+            <Text style={[styles.tabTxt, activeTab === tab && styles.tabTxtOn]}>{t(TAB_KEY[tab])}</Text>
           </TouchableOpacity>
         ))}
       </View>
@@ -115,8 +118,8 @@ export default function NotificationsScreen() {
         {filtered.length === 0 && (
           <View style={styles.empty}>
             <Text style={styles.emptyIcon}>🔔</Text>
-            <Text style={styles.emptyTitle}>Nothing yet</Text>
-            <Text style={styles.emptySub}>Activity will appear here</Text>
+            <Text style={styles.emptyTitle}>{t('notif.emptyTitle')}</Text>
+            <Text style={styles.emptySub}>{t('notif.emptySub')}</Text>
           </View>
         )}
         {filtered.map(n => (
@@ -128,12 +131,12 @@ export default function NotificationsScreen() {
               <Text style={styles.notifText}>{n.text}</Text>
               {n.type === 'event' && (
                 <TouchableOpacity style={styles.viewBtn} onPress={() => router.push(`/event/${n.eventId}` as any)}>
-                  <Text style={styles.viewBtnTxt}>Открыть событие →</Text>
+                  <Text style={styles.viewBtnTxt}>{t('notif.open')}</Text>
                 </TouchableOpacity>
               )}
               {n.type === 'event' && n.creator && n.creator === userId && (
                 <TouchableOpacity style={styles.viewBtn} onPress={() => deleteEvent(n.eventId)}>
-                  <Text style={styles.delLinkTxt}>🗑 Удалить</Text>
+                  <Text style={styles.delLinkTxt}>{t('notif.del')}</Text>
                 </TouchableOpacity>
               )}
               <Text style={styles.time}>{n.time}</Text>

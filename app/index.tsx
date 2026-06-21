@@ -1,94 +1,57 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { router, useFocusEffect } from 'expo-router';
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { ActivityIndicator, KeyboardAvoidingView, Platform, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import { LANGS, useI18n } from './lib/i18n';
 import { supabase } from './lib/supabase';
 
-const LANGS = ['EN', 'RU', 'TH'] as const;
-type Lang = typeof LANGS[number];
-
-const T: Record<Lang, any> = {
-  EN: {
-    title1: 'Find your', title2: 'people', title3: ',\nright now',
-    sub: "Enter your email — we'll send a code",
-    emailPh: 'your@email.com', send: 'Send code',
-    checkTitle1: 'Check your', checkTitle2: 'email',
-    checkSub: 'We sent a code to', verify: 'Verify & Enter',
-    back: '← Use a different email',
-    errEmail: 'Enter a valid email', errCode: 'Enter the code', errNet: 'Network error. Try again.',
-  },
-  RU: {
-    title1: 'Найди своих', title2: 'людей', title3: '\nпрямо сейчас',
-    sub: 'Введи email — пришлём код',
-    emailPh: 'твой@email.com', send: 'Получить код',
-    checkTitle1: 'Проверь свою', checkTitle2: 'почту',
-    checkSub: 'Мы отправили код на', verify: 'Подтвердить',
-    back: '← Другой email',
-    errEmail: 'Введи корректный email', errCode: 'Введи код', errNet: 'Ошибка сети. Попробуй ещё.',
-  },
-  TH: {
-    title1: 'หาเพื่อน', title2: 'ของคุณ', title3: '\nตอนนี้เลย',
-    sub: 'กรอกอีเมล — เราจะส่งรหัสให้',
-    emailPh: 'your@email.com', send: 'ส่งรหัส',
-    checkTitle1: 'เช็ค', checkTitle2: 'อีเมล',
-    checkSub: 'เราส่งรหัสไปที่', verify: 'ยืนยัน',
-    back: '← ใช้อีเมลอื่น',
-    errEmail: 'กรอกอีเมลให้ถูกต้อง', errCode: 'กรอกรหัส', errNet: 'เครือข่ายขัดข้อง ลองใหม่',
-  },
-};
-
 export default function LoginScreen() {
-  const [lang, setLang] = useState<Lang>('EN');
+  const { lang, setLang, t } = useI18n();
   const [step, setStep] = useState<'email' | 'code'>('email');
   const [email, setEmail] = useState('');
   const [code, setCode] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [checking, setChecking] = useState(true);
-  const t = T[lang];
 
   useEffect(() => {
-    AsyncStorage.getItem('lang').then(v => { if (v === 'RU' || v === 'TH' || v === 'EN') setLang(v); });
     supabase.auth.getSession().then(({ data }) => {
       if (data.session) router.replace('/feed');
       else setChecking(false);
     });
   }, []);
 
-  const pickLang = (l: Lang) => { setLang(l); AsyncStorage.setItem('lang', l); };
+  const pickLang = (l: typeof lang) => { setLang(l); AsyncStorage.setItem('lang', l); };
 
   useFocusEffect(useCallback(() => { setStep('email'); setCode(''); setError(''); }, []));
 
   const sendCode = async () => {
-    if (!email.includes('@')) { setError(t.errEmail); return; }
+    if (!email.includes('@')) { setError(t('login.errEmail')); return; }
     setLoading(true); setError('');
     try {
       await supabase.auth.signOut({ scope: 'global' });
       const { error } = await supabase.auth.signInWithOtp({ email });
       if (error) setError(error.message);
       else setStep('code');
-    } catch (e) { setError(t.errNet); }
+    } catch (e) { setError(t('login.errNet')); }
     finally { setLoading(false); }
   };
 
-  const verifyCode = async (value?: string) => {
-    const otp = (value ?? code).trim();
-    if (otp.length < 6) { setError(t.errCode); return; }
+  const verifying = useRef(false);
+  const verifyCode = async () => {
+    const otp = code.trim();
+    if (otp.length < 6) { setError(t('login.errCode')); return; }
+    if (verifying.current) return; // never submit the same one-time code twice
+    verifying.current = true;
     setLoading(true); setError('');
     try {
       const { data, error } = await supabase.auth.verifyOtp({ email, token: otp, type: 'email' });
       if (error) { setError(error.message); return; }
       if (data.session) await supabase.auth.setSession(data.session);
       router.replace('/feed');
-    } catch (e) { setError(t.errNet); }
-    finally { setLoading(false); }
+    } catch (e) { setError(t('login.errNet')); }
+    finally { setLoading(false); verifying.current = false; }
   };
-
-  // Auto-submit once all 6 digits are entered.
-  useEffect(() => {
-    if (step === 'code' && code.length === 6 && !loading) { verifyCode(code); }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [code, step]);
 
   if (checking) {
     return (
@@ -112,11 +75,11 @@ export default function LoginScreen() {
 
         {step === 'email' ? (
           <>
-            <Text style={styles.title}>{t.title1} <Text style={styles.yellow}>{t.title2}</Text>{t.title3}</Text>
-            <Text style={styles.sub}>{t.sub}</Text>
+            <Text style={styles.title}>{t('login.title1')} <Text style={styles.yellow}>{t('login.title2')}</Text>{t('login.title3')}</Text>
+            <Text style={styles.sub}>{t('login.sub')}</Text>
             <TextInput
               style={styles.input}
-              placeholder={t.emailPh}
+              placeholder={t('login.emailPh')}
               placeholderTextColor="rgba(255,255,255,0.3)"
               value={email}
               onChangeText={v => { setEmail(v); setError(''); }}
@@ -126,28 +89,28 @@ export default function LoginScreen() {
             />
             {error ? <Text style={styles.error}>{error}</Text> : null}
             <TouchableOpacity style={[styles.btn, (!email || loading) && styles.btnOff]} disabled={!email || loading} onPress={sendCode}>
-              {loading ? <ActivityIndicator color="#16263F" /> : <Text style={styles.btnTxt}>{t.send}</Text>}
+              {loading ? <ActivityIndicator color="#16263F" /> : <Text style={styles.btnTxt}>{t('login.send')}</Text>}
             </TouchableOpacity>
           </>
         ) : (
           <>
-            <Text style={styles.title}>{t.checkTitle1} <Text style={styles.yellow}>{t.checkTitle2}</Text></Text>
-            <Text style={styles.sub}>{t.checkSub} {email}</Text>
+            <Text style={styles.title}>{t('login.checkTitle1')} <Text style={styles.yellow}>{t('login.checkTitle2')}</Text></Text>
+            <Text style={styles.sub}>{t('login.checkSub', { email })}</Text>
             <TextInput
               style={[styles.input, styles.codeInput]}
               placeholder="000000"
               placeholderTextColor="rgba(255,255,255,0.3)"
               value={code}
-              onChangeText={v => { setCode(v.replace(/[^0-9]/g, '').slice(0, 6)); setError(''); }}
+              onChangeText={v => { setCode(v.replace(/[^0-9]/g, '')); setError(''); }}
               keyboardType="number-pad"
-              maxLength={6}
+              maxLength={10}
             />
             {error ? <Text style={styles.error}>{error}</Text> : null}
             <TouchableOpacity style={[styles.btn, (code.length < 6 || loading) && styles.btnOff]} disabled={code.length < 6 || loading} onPress={() => verifyCode()}>
-              {loading ? <ActivityIndicator color="#16263F" /> : <Text style={styles.btnTxt}>{t.verify}</Text>}
+              {loading ? <ActivityIndicator color="#16263F" /> : <Text style={styles.btnTxt}>{t('login.verify')}</Text>}
             </TouchableOpacity>
             <TouchableOpacity onPress={() => { setStep('email'); setCode(''); setError(''); }}>
-              <Text style={styles.back}>{t.back}</Text>
+              <Text style={styles.back}>{t('login.back')}</Text>
             </TouchableOpacity>
           </>
         )}

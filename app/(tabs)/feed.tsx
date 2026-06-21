@@ -2,11 +2,13 @@ import { Image } from 'expo-image';
 import { router, useFocusEffect } from 'expo-router';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { ActivityIndicator, RefreshControl, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import { useI18n } from '../lib/i18n';
 import { supabase } from '../lib/supabase';
 
 const byNewest = (a: any, b: any) => new Date(b.created).getTime() - new Date(a.created).getTime();
 
 export default function FeedScreen() {
+  const { t } = useI18n();
   const [items, setItems] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -142,8 +144,8 @@ export default function FeedScreen() {
     <View style={styles.container}>
       <View style={styles.header}>
         <View>
-          <Text style={styles.headerTitle}>Feed</Text>
-          <Text style={styles.headerSub}>Друзья и активность сообщества</Text>
+          <Text style={styles.headerTitle}>{t('feed.title')}</Text>
+          <Text style={styles.headerSub}>{t('feed.sub')}</Text>
         </View>
         <TouchableOpacity style={styles.writeBtn} onPress={() => setWriting(w => !w)}>
           <Text style={styles.writeBtnTxt}>{writing ? '✕' : '✍️'}</Text>
@@ -152,15 +154,15 @@ export default function FeedScreen() {
 
       {writing && (
         <View style={styles.composer}>
-          <TextInput style={styles.composerInput} placeholder="What's happening?" placeholderTextColor="#aaa" value={text} onChangeText={setText} multiline />
+          <TextInput style={styles.composerInput} placeholder={t('feed.composerPh')} placeholderTextColor="#aaa" value={text} onChangeText={setText} multiline />
           <TouchableOpacity style={[styles.postBtn, (text.trim().length < 3 || posting) && styles.postBtnOff]} disabled={text.trim().length < 3 || posting} onPress={createPost}>
-            {posting ? <ActivityIndicator color="#16263F" /> : <Text style={styles.postBtnTxt}>Post</Text>}
+            {posting ? <ActivityIndicator color="#16263F" /> : <Text style={styles.postBtnTxt}>{t('feed.post')}</Text>}
           </TouchableOpacity>
         </View>
       )}
 
       <ScrollView showsVerticalScrollIndicator={false} refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}>
-        {items.length === 0 && <Text style={styles.empty}>Пока пусто — добавь друзей или создай событие!</Text>}
+        {items.length === 0 && <Text style={styles.empty}>{t('feed.empty')}</Text>}
         {items.map(item => item.kind === 'event' ? (
           <TouchableOpacity key={'e' + item.id} style={styles.post} activeOpacity={0.7} onPress={() => router.push(`/event/${item.id}` as any)}>
             <View style={styles.postHead}>
@@ -169,16 +171,16 @@ export default function FeedScreen() {
               </View>
               <View style={{ flex: 1 }}>
                 <Text style={styles.postUser}>{item.title}</Text>
-                <Text style={styles.postActivity}>📅 событие · 👥 {item.people}/{item.max} · {item.now ? '🟢 Now' : '🕐 Later'}</Text>
+                <Text style={styles.postActivity}>{t('feed.eventTag')} · 👥 {item.people}/{item.max} · {item.now ? t('common.now') : t('common.later')}</Text>
               </View>
-              {item.friend && <View style={styles.friendBadge}><Text style={styles.friendBadgeTxt}>★ Друг</Text></View>}
+              {item.friend && <View style={styles.friendBadge}><Text style={styles.friendBadgeTxt}>{t('feed.friend')}</Text></View>}
             </View>
             {item.location ? <Text style={styles.postLoc}>📍 {item.location}</Text> : null}
             <View style={styles.postActions}>
               <TouchableOpacity onPress={() => toggleEventLike(item.id)}>
                 <Text style={styles.actionTxt}>{likedEvents.includes(item.id) ? '❤️' : '🤍'} {item.likes || 0}</Text>
               </TouchableOpacity>
-              <Text style={styles.openHint}>Открыть событие →</Text>
+              <Text style={styles.openHint}>{t('feed.open')}</Text>
             </View>
           </TouchableOpacity>
         ) : (

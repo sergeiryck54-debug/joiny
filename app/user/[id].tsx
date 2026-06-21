@@ -2,11 +2,13 @@ import { Image } from 'expo-image';
 import { router, useLocalSearchParams } from 'expo-router';
 import { useEffect, useState } from 'react';
 import { ActivityIndicator, Alert, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { useI18n } from '../lib/i18n';
 import { supabase } from '../lib/supabase';
 
 type Relation = 'none' | 'outgoing' | 'incoming' | 'friends';
 
 export default function UserProfileScreen() {
+  const { t } = useI18n();
   const { id } = useLocalSearchParams<{ id: string }>();
   const [prof, setProf] = useState<any>(null);
   const [events, setEvents] = useState<any[]>([]);
@@ -74,7 +76,7 @@ export default function UserProfileScreen() {
         setRelation('none');
       }
     } catch (e: any) {
-      Alert.alert('Не удалось', e?.message || 'Попробуй ещё раз.');
+      Alert.alert(t('common.failed'), e?.message || t('common.tryAgain'));
     } finally {
       setFriendBusy(false);
     }
@@ -86,10 +88,10 @@ export default function UserProfileScreen() {
 
   const interests: string[] = prof?.interests || [];
   const btn = {
-    none: { txt: '+ Добавить в друзья', action: true },
-    incoming: { txt: '✓ Принять заявку', action: true },
-    outgoing: { txt: '⏳ Заявка отправлена', action: false },
-    friends: { txt: '✓ В друзьях', action: false },
+    none: { txt: t('user.addFriend'), action: true },
+    incoming: { txt: t('user.accept'), action: true },
+    outgoing: { txt: t('user.requested'), action: false },
+    friends: { txt: t('user.friends'), action: false },
   }[relation];
 
   return (
@@ -101,7 +103,7 @@ export default function UserProfileScreen() {
         <View style={styles.avatar}>
           {prof?.avatar_url ? <Image source={{ uri: prof.avatar_url }} style={styles.avatarImg} contentFit="cover" /> : <Text style={styles.avatarEmoji}>🧑</Text>}
         </View>
-        <Text style={styles.name}>{prof?.name || 'Аноним'}</Text>
+        <Text style={styles.name}>{prof?.name || t('common.anon')}</Text>
         {prof?.bio ? <Text style={styles.bio}>{prof.bio}</Text> : null}
         {prof?.city ? <Text style={styles.location}>📍 {prof.city}</Text> : null}
         {!!myId && myId !== id && (
@@ -118,7 +120,7 @@ export default function UserProfileScreen() {
 
       {interests.length > 0 && (
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Интересы</Text>
+          <Text style={styles.sectionTitle}>{t('user.interests')}</Text>
           <View style={styles.tagsWrap}>
             {interests.map(tag => (
               <View key={tag} style={styles.tag}><Text style={styles.tagTxt}>{tag}</Text></View>
@@ -128,14 +130,14 @@ export default function UserProfileScreen() {
       )}
 
       <View style={styles.section}>
-        <Text style={styles.sectionTitle}>События</Text>
-        {events.length === 0 && <Text style={styles.empty}>Пока нет событий</Text>}
+        <Text style={styles.sectionTitle}>{t('user.events')}</Text>
+        {events.length === 0 && <Text style={styles.empty}>{t('user.noEvents')}</Text>}
         {events.map(e => (
           <TouchableOpacity key={e.id} style={styles.eventCard} onPress={() => router.push(`/event/${e.id}` as any)}>
             <Text style={styles.eventEmoji}>{e.emoji}</Text>
             <View style={{ flex: 1 }}>
               <Text style={styles.eventTitle}>{e.title}</Text>
-              <Text style={styles.eventMeta}>👥 {e.people}/{e.max_people} · ❤️ {e.likes || 0} · {e.is_now ? '🟢 Now' : '🕐 Later'}</Text>
+              <Text style={styles.eventMeta}>👥 {e.people}/{e.max_people} · ❤️ {e.likes || 0} · {e.is_now ? t('common.now') : t('common.later')}</Text>
             </View>
             <Text style={styles.chevron}>›</Text>
           </TouchableOpacity>

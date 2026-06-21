@@ -5,6 +5,7 @@ import { router, useFocusEffect } from 'expo-router';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { ActivityIndicator, Alert, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { WebView } from 'react-native-webview';
+import { useI18n } from '../lib/i18n';
 import { supabase } from '../lib/supabase';
 
 const FILTERS = ['All', '⚽', '🎸', '🧘', '🎲', '🐕'];
@@ -37,6 +38,7 @@ function buildMapHtml(location: { lat: number; lng: number }, events: any[]) {
 }
 
 export default function MapScreen() {
+  const { t } = useI18n();
   const [filter, setFilter] = useState('All');
   const [joined, setJoined] = useState<string[]>([]);
   const [joining, setJoining] = useState<string | null>(null);
@@ -134,7 +136,7 @@ export default function MapScreen() {
       setJoined(prev => wasJoined ? [...prev, id] : prev.filter(i => i !== id));
       setDbEvents(prev => prev.map(e => e.id === id ? { ...e, people: Math.max(0, (e.people || 0) + (wasJoined ? 1 : -1)) } : e));
       if (String(e?.message || '').includes('full')) {
-        Alert.alert('Событие заполнено', 'Все места уже заняты.');
+        Alert.alert(t('map.full'), t('map.fullMsg'));
       }
     } finally {
       setJoining(null);
@@ -142,10 +144,10 @@ export default function MapScreen() {
   };
 
   const deleteEvent = (id: string) => {
-    Alert.alert('Удалить событие?', 'Событие и его чат удалятся для всех. Это необратимо.', [
-      { text: 'Отмена', style: 'cancel' },
+    Alert.alert(t('map.delQ'), t('map.delMsg'), [
+      { text: t('common.cancel'), style: 'cancel' },
       {
-        text: 'Удалить', style: 'destructive', onPress: async () => {
+        text: t('common.delete'), style: 'destructive', onPress: async () => {
           try {
             const { error } = await supabase.rpc('delete_event', { p_event_id: id });
             if (error) throw error;
@@ -154,7 +156,7 @@ export default function MapScreen() {
             setJoined(prev => prev.filter(i => i !== id));
             if (location) setMapHtml(buildMapHtml(location, next));
           } catch (e) {
-            Alert.alert('Не удалось удалить', 'Попробуй ещё раз.');
+            Alert.alert(t('map.delFail'), t('common.tryAgain'));
           }
         },
       },
@@ -188,7 +190,7 @@ export default function MapScreen() {
     return (
       <View style={styles.loading}>
         <ActivityIndicator size="large" color="#2FB6A8" />
-        <Text style={styles.loadingTxt}>Finding your location...</Text>
+        <Text style={styles.loadingTxt}>{t('map.finding')}</Text>
       </View>
     );
   }
@@ -216,7 +218,7 @@ export default function MapScreen() {
         />
         {placing && (
           <View style={styles.mapHint} pointerEvents="none">
-            <Text style={styles.mapHintTxt}>👆 Нажми на карту, чтобы поставить событие</Text>
+            <Text style={styles.mapHintTxt}>{t('map.tapHint')}</Text>
           </View>
         )}
       </View>
@@ -224,15 +226,15 @@ export default function MapScreen() {
       <View style={styles.statsBar}>
         <View style={styles.stat}>
           <Text style={styles.statNum}>{events.filter(e => e.now).length}</Text>
-          <Text style={styles.statLbl}>Now</Text>
+          <Text style={styles.statLbl}>{t('map.now')}</Text>
         </View>
         <View style={styles.stat}>
           <Text style={styles.statNum}>{events.length}</Text>
-          <Text style={styles.statLbl}>Nearby</Text>
+          <Text style={styles.statLbl}>{t('map.nearby')}</Text>
         </View>
         <View style={styles.stat}>
           <Text style={styles.statNum}>147</Text>
-          <Text style={styles.statLbl}>People</Text>
+          <Text style={styles.statLbl}>{t('map.people')}</Text>
         </View>
       </View>
 
@@ -243,7 +245,7 @@ export default function MapScreen() {
             style={[styles.ftag, filter === f && styles.ftagActive]}
             onPress={() => setFilter(f)}
           >
-            <Text style={[styles.ftagTxt, filter === f && styles.ftagTxtActive]}>{f}</Text>
+            <Text style={[styles.ftagTxt, filter === f && styles.ftagTxtActive]}>{f === 'All' ? t('map.all') : f}</Text>
           </TouchableOpacity>
         ))}
       </ScrollView>
@@ -262,7 +264,7 @@ export default function MapScreen() {
               <View style={styles.cardInfo}>
                 <Text style={styles.cardTitle}>{event.title}</Text>
                 {event.location ? <Text style={styles.cardLoc} numberOfLines={1}>📍 {event.location}</Text> : null}
-                <Text style={styles.cardMeta}>👥 {event.people}/{event.max} · {event.now ? '🟢 Now' : '🕐 Later'}</Text>
+                <Text style={styles.cardMeta}>👥 {event.people}/{event.max} · {event.now ? t('common.now') : t('common.later')}</Text>
               </View>
             </TouchableOpacity>
             <View style={styles.cardActions}>
@@ -275,7 +277,7 @@ export default function MapScreen() {
                 onPress={() => toggleJoin(event.id)}
               >
                 <Text style={[styles.joinTxt, joined.includes(event.id) && styles.joinTxtDone]}>
-                  {joining === event.id ? '…' : joined.includes(event.id) ? '✓' : 'Join'}
+                  {joining === event.id ? '…' : joined.includes(event.id) ? '✓' : t('map.join')}
                 </Text>
               </TouchableOpacity>
               {event.creator && event.creator === userId && (
@@ -292,7 +294,7 @@ export default function MapScreen() {
       <View style={styles.fab}>
         <BlurView intensity={45} tint="light" style={styles.fabBlur}>
           <TouchableOpacity activeOpacity={0.85} onPress={() => setPlacing(p => !p)} style={styles.fabInner}>
-            <Text style={styles.fabTxt}>{placing ? '✕ Отмена — выбери точку' : '✦ Create Event'}</Text>
+            <Text style={styles.fabTxt}>{placing ? t('map.cancelPick') : t('map.createEvent')}</Text>
           </TouchableOpacity>
         </BlurView>
       </View>

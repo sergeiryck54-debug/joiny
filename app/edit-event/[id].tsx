@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import { ActivityIndicator, Alert, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { WebView } from 'react-native-webview';
 import { reverseGeocode } from '../lib/geocode';
+import { useI18n } from '../lib/i18n';
 import { addEventPhotos, getEventPhotos, pickImagesBase64, removeEventPhoto } from '../lib/photos';
 import { supabase } from '../lib/supabase';
 
@@ -36,6 +37,7 @@ function buildPickerHtml(center: { lat: number; lng: number }, pin: { lat: numbe
 }
 
 export default function EditEventScreen() {
+  const { t } = useI18n();
   const { id } = useLocalSearchParams<{ id: string }>();
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -105,23 +107,23 @@ export default function EditEventScreen() {
       await addEventPhotos(id, userId, list);
       await refreshPhotos();
     } catch (e) {
-      Alert.alert('Не удалось добавить фото', 'Попробуй ещё раз.');
+      Alert.alert(t('ev.photoFail'), t('common.tryAgain'));
     } finally {
       setPhotoBusy(false);
     }
   };
 
   const removePhoto = (photoId: string | null) => {
-    Alert.alert('Удалить фото?', 'Это фото будет удалено.', [
-      { text: 'Отмена', style: 'cancel' },
+    Alert.alert(t('ev.delPhotoQ'), t('ev.delPhotoMsg'), [
+      { text: t('common.cancel'), style: 'cancel' },
       {
-        text: 'Удалить', style: 'destructive', onPress: async () => {
+        text: t('common.delete'), style: 'destructive', onPress: async () => {
           setPhotoBusy(true);
           try {
             if (photoId) await removeEventPhoto(id, photoId);
             else { await supabase.rpc('set_event_photo', { p_event_id: id, p_url: null }); setCoverUrl(''); }
             await refreshPhotos();
-          } catch (e) { Alert.alert('Не удалось удалить фото', 'Попробуй ещё раз.'); }
+          } catch (e) { Alert.alert(t('ev.photoFail'), t('common.tryAgain')); }
           finally { setPhotoBusy(false); }
         },
       },
@@ -163,29 +165,29 @@ export default function EditEventScreen() {
     <View style={styles.container}>
       <View style={styles.header}>
         <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}><Text style={styles.backTxt}>‹</Text></TouchableOpacity>
-        <Text style={styles.headerTitle}>Редактировать событие</Text>
+        <Text style={styles.headerTitle}>{t('edit.header')}</Text>
       </View>
 
       <ScrollView style={styles.form} showsVerticalScrollIndicator={false} scrollEnabled={formScroll}>
         <View style={styles.field}>
-          <Text style={styles.label}>EVENT NAME</Text>
-          <TextInput style={styles.input} value={title} onChangeText={setTitle} placeholder="Название" placeholderTextColor="#aaa" />
+          <Text style={styles.label}>{t('create.eventName')}</Text>
+          <TextInput style={styles.input} value={title} onChangeText={setTitle} placeholder={t('create.eventNamePh')} placeholderTextColor="#aaa" />
         </View>
 
         <View style={styles.field}>
-          <Text style={styles.label}>CATEGORY</Text>
+          <Text style={styles.label}>{t('create.category')}</Text>
           <View style={styles.catGrid}>
             {CATEGORIES.map(c => (
               <TouchableOpacity key={c.label} style={[styles.catBtn, category === c.label && styles.catBtnOn]} onPress={() => setCategory(c.label)}>
                 <Text style={styles.catEmoji}>{c.emoji}</Text>
-                <Text style={[styles.catLabel, category === c.label && styles.catLabelOn]}>{c.label}</Text>
+                <Text style={[styles.catLabel, category === c.label && styles.catLabelOn]}>{t('cat.' + c.label)}</Text>
               </TouchableOpacity>
             ))}
           </View>
         </View>
 
         <View style={styles.field}>
-          <Text style={styles.label}>LOCATION</Text>
+          <Text style={styles.label}>{t('create.location')}</Text>
           {mapHtml ? (
             <View
               style={styles.miniMap}
@@ -196,12 +198,12 @@ export default function EditEventScreen() {
               <WebView originWhitelist={['*']} source={{ html: mapHtml }} onMessage={onMapMessage} scrollEnabled={false} nestedScrollEnabled style={{ flex: 1 }} />
             </View>
           ) : null}
-          <TextInput style={[styles.input, { marginTop: 8 }]} value={place} onChangeText={setPlace} placeholder="📍 Адрес" placeholderTextColor="#aaa" />
-          {resolving ? <Text style={styles.hint}>Определяем адрес…</Text> : <Text style={styles.hint}>Нажми на карту, чтобы изменить точку</Text>}
+          <TextInput style={[styles.input, { marginTop: 8 }]} value={place} onChangeText={setPlace} placeholder={t('create.addressPh')} placeholderTextColor="#aaa" />
+          {resolving ? <Text style={styles.hint}>{t('create.resolving')}</Text> : <Text style={styles.hint}>{t('create.tapMapHint')}</Text>}
         </View>
 
         <View style={styles.field}>
-          <Text style={styles.label}>PHOTOS ({gallery.length}/6)</Text>
+          <Text style={styles.label}>{t('create.photos')} ({gallery.length}/6)</Text>
           <View style={styles.photoGrid}>
             {gallery.map((p, i) => (
               <View key={p.id || i} style={styles.thumbWrap}>
@@ -218,7 +220,7 @@ export default function EditEventScreen() {
         </View>
 
         <View style={styles.field}>
-          <Text style={styles.label}>MAX PEOPLE</Text>
+          <Text style={styles.label}>{t('create.maxPeople')}</Text>
           <View style={styles.counterWrap}>
             <TouchableOpacity style={styles.counterBtn} onPress={() => setMaxPeople(p => String(Math.max(2, +p - 1)))}><Text style={styles.counterBtnTxt}>−</Text></TouchableOpacity>
             <Text style={styles.counterVal}>{maxPeople}</Text>
@@ -227,19 +229,19 @@ export default function EditEventScreen() {
         </View>
 
         <View style={styles.modeWrap}>
-          <TouchableOpacity style={[styles.modeBtn, mode === 'now' && styles.modeBtnOn]} onPress={() => setMode('now')}><Text style={[styles.modeTxt, mode === 'now' && styles.modeTxtOn]}>⚡ Right Now</Text></TouchableOpacity>
-          <TouchableOpacity style={[styles.modeBtn, mode === 'later' && styles.modeBtnOn]} onPress={() => setMode('later')}><Text style={[styles.modeTxt, mode === 'later' && styles.modeTxtOn]}>📅 Plan Ahead</Text></TouchableOpacity>
+          <TouchableOpacity style={[styles.modeBtn, mode === 'now' && styles.modeBtnOn]} onPress={() => setMode('now')}><Text style={[styles.modeTxt, mode === 'now' && styles.modeTxtOn]}>{t('create.rightNow')}</Text></TouchableOpacity>
+          <TouchableOpacity style={[styles.modeBtn, mode === 'later' && styles.modeBtnOn]} onPress={() => setMode('later')}><Text style={[styles.modeTxt, mode === 'later' && styles.modeTxtOn]}>{t('create.planAhead')}</Text></TouchableOpacity>
         </View>
 
         {mode === 'later' && (
           <View style={styles.field}>
-            <Text style={styles.label}>DATE & TIME</Text>
-            <TextInput style={styles.input} value={startsAt} onChangeText={setStartsAt} placeholder="напр. Завтра в 18:00" placeholderTextColor="#aaa" />
+            <Text style={styles.label}>{t('create.dateTime')}</Text>
+            <TextInput style={styles.input} value={startsAt} onChangeText={setStartsAt} placeholder={t('create.dateTimePh')} placeholderTextColor="#aaa" />
           </View>
         )}
 
         <TouchableOpacity style={[styles.saveBtn, (!canSave || saving) && styles.saveBtnOff]} disabled={!canSave || saving} onPress={save}>
-          {saving ? <ActivityIndicator color="#16263F" /> : <Text style={styles.saveTxt}>Сохранить</Text>}
+          {saving ? <ActivityIndicator color="#16263F" /> : <Text style={styles.saveTxt}>{t('common.save')}</Text>}
         </TouchableOpacity>
         <View style={{ height: 60 }} />
       </ScrollView>

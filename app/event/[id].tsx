@@ -3,6 +3,7 @@ import { router, useFocusEffect, useLocalSearchParams } from 'expo-router';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { ActivityIndicator, Alert, Dimensions, Share, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { WebView } from 'react-native-webview';
+import { useI18n } from '../lib/i18n';
 import { addEventPhotos, getEventPhotos, pickImagesBase64, removeEventPhoto } from '../lib/photos';
 import { supabase } from '../lib/supabase';
 
@@ -24,6 +25,7 @@ function buildEventMapHtml(lat: number, lng: number) {
 }
 
 export default function EventDetailScreen() {
+  const { t } = useI18n();
   const { id } = useLocalSearchParams<{ id: string }>();
   const [ev, setEv] = useState<any>(null);
   const [creator, setCreator] = useState<any>(null);
@@ -87,7 +89,7 @@ export default function EventDetailScreen() {
     } catch (e: any) {
       setJoined(was);
       setEv((e: any) => e ? { ...e, people: Math.max(0, (e.people || 0) + (was ? 1 : -1)) } : e);
-      if (String(e?.message || '').includes('full')) Alert.alert('Событие заполнено', 'Все места уже заняты.');
+      if (String(e?.message || '').includes('full')) Alert.alert(t('map.full'), t('map.fullMsg'));
     } finally {
       setJoining(false);
     }
@@ -126,7 +128,7 @@ export default function EventDetailScreen() {
   };
 
   const openChat = () => {
-    if (!joined) { Alert.alert('Сначала присоединись', 'Чат доступен участникам события.'); return; }
+    if (!joined) { Alert.alert(t('ev.joinFirst'), t('ev.joinFirstMsg')); return; }
     router.push(`/chat/${id}` as any);
   };
 
@@ -136,7 +138,7 @@ export default function EventDetailScreen() {
     if (ev.location) lines.push(`📍 ${ev.location}`);
     lines.push(`📅 ${when}`);
     lines.push(`👥 ${ev.people}/${ev.max_people}`);
-    lines.push(`\nОткрой в Joiny: joinapp://event/${id}`);
+    lines.push(`\n${t('ev.shareOpen')}joinapp://event/${id}`);
     try { await Share.share({ message: lines.join('\n') }); } catch (e) {}
   };
 
@@ -151,17 +153,17 @@ export default function EventDetailScreen() {
       setPhotos(ph);
       setEv((e: any) => ({ ...e, photo_url: ph.length ? ph[0].url : null }));
     } catch (e) {
-      Alert.alert('Не удалось добавить фото', 'Попробуй ещё раз.');
+      Alert.alert(t('ev.photoFail'), t('common.tryAgain'));
     } finally {
       setPhotoBusy(false);
     }
   };
 
   const removePhoto = (photoId: string | null) => {
-    Alert.alert('Удалить фото?', 'Это фото будет удалено.', [
-      { text: 'Отмена', style: 'cancel' },
+    Alert.alert(t('ev.delPhotoQ'), t('ev.delPhotoMsg'), [
+      { text: t('common.cancel'), style: 'cancel' },
       {
-        text: 'Удалить', style: 'destructive', onPress: async () => {
+        text: t('common.delete'), style: 'destructive', onPress: async () => {
           setPhotoBusy(true);
           try {
             if (photoId) await removeEventPhoto(id, photoId);
@@ -169,7 +171,7 @@ export default function EventDetailScreen() {
             const ph = await getEventPhotos(id);
             setPhotos(ph);
             setEv((e: any) => ({ ...e, photo_url: ph.length ? ph[0].url : null }));
-          } catch (e) { Alert.alert('Не удалось удалить фото', 'Попробуй ещё раз.'); }
+          } catch (e) { Alert.alert(t('ev.photoFail'), t('common.tryAgain')); }
           finally { setPhotoBusy(false); }
         },
       },
@@ -180,27 +182,27 @@ export default function EventDetailScreen() {
     const sendReport = async (reason: string) => {
       try {
         await supabase.from('photo_reports').insert({ reporter_id: userId, event_id: id, photo_url: url, reason });
-        Alert.alert('Спасибо', 'Жалоба отправлена на проверку.');
-      } catch (e) { Alert.alert('Не удалось отправить', 'Попробуй ещё раз.'); }
+        Alert.alert(t('ev.reportThanks'), t('ev.reportThanksMsg'));
+      } catch (e) { Alert.alert(t('ev.reportFail'), t('common.tryAgain')); }
     };
-    Alert.alert('Пожаловаться на фото', 'Выбери причину', [
-      { text: 'Отмена', style: 'cancel' },
-      { text: 'Оскорбительное', onPress: () => sendReport('offensive') },
-      { text: 'Спам/реклама', onPress: () => sendReport('spam') },
-      { text: 'Другое', onPress: () => sendReport('other') },
+    Alert.alert(t('ev.reportTitle'), t('ev.reportSub'), [
+      { text: t('common.cancel'), style: 'cancel' },
+      { text: t('ev.rOffensive'), onPress: () => sendReport('offensive') },
+      { text: t('ev.rSpam'), onPress: () => sendReport('spam') },
+      { text: t('ev.rOther'), onPress: () => sendReport('other') },
     ]);
   };
 
   const deleteEvent = () => {
-    Alert.alert('Удалить событие?', 'Событие и его чат удалятся для всех. Это необратимо.', [
-      { text: 'Отмена', style: 'cancel' },
+    Alert.alert(t('map.delQ'), t('map.delMsg'), [
+      { text: t('common.cancel'), style: 'cancel' },
       {
-        text: 'Удалить', style: 'destructive', onPress: async () => {
+        text: t('common.delete'), style: 'destructive', onPress: async () => {
           try {
             const { error } = await supabase.rpc('delete_event', { p_event_id: id });
             if (error) throw error;
             router.back();
-          } catch (e) { Alert.alert('Не удалось удалить', 'Попробуй ещё раз.'); }
+          } catch (e) { Alert.alert(t('map.delFail'), t('common.tryAgain')); }
         },
       },
     ]);
@@ -217,13 +219,13 @@ export default function EventDetailScreen() {
   if (!ev) {
     return (
       <View style={styles.loadingWrap}>
-        <Text style={styles.muted}>Событие не найдено</Text>
-        <TouchableOpacity style={styles.backLink} onPress={() => router.back()}><Text style={styles.backLinkTxt}>← Назад</Text></TouchableOpacity>
+        <Text style={styles.muted}>{t('ev.notFound')}</Text>
+        <TouchableOpacity style={styles.backLink} onPress={() => router.back()}><Text style={styles.backLinkTxt}>{t('common.back')}</Text></TouchableOpacity>
       </View>
     );
   }
 
-  const when = ev.starts_at ? ev.starts_at : (ev.is_now ? '🟢 Прямо сейчас' : 'Время не указано');
+  const when = ev.starts_at ? ev.starts_at : (ev.is_now ? t('ev.rightNow') : t('ev.noTime'));
   // Gallery from event_photos; fall back to the legacy single cover for old events.
   const gallery = photos.length ? photos : (ev.photo_url ? [{ id: null, url: ev.photo_url }] : []);
 
@@ -248,13 +250,13 @@ export default function EventDetailScreen() {
                 </View>
               ))}
             </ScrollView>
-            {gallery.length > 1 && <View style={styles.countBadge}><Text style={styles.countTxt}>{gallery.length} фото</Text></View>}
+            {gallery.length > 1 && <View style={styles.countBadge}><Text style={styles.countTxt}>{t('ev.photosCount', { n: gallery.length })}</Text></View>}
             {isCreator && <TouchableOpacity style={styles.addMore} onPress={addPhotos} disabled={photoBusy}><Text style={styles.addMoreTxt}>＋</Text></TouchableOpacity>}
             {photoBusy && <View style={styles.photoOverlay}><ActivityIndicator color="#fff" /></View>}
           </View>
         ) : isCreator ? (
           <TouchableOpacity style={styles.addPhoto} onPress={addPhotos} disabled={photoBusy}>
-            <Text style={styles.addPhotoTxt}>{photoBusy ? 'Загрузка…' : '📷 Добавить фото события'}</Text>
+            <Text style={styles.addPhotoTxt}>{photoBusy ? t('common.uploading') : t('ev.addPhoto')}</Text>
           </TouchableOpacity>
         ) : (
           <View style={styles.noPhoto}><Text style={styles.noPhotoEmoji}>{ev.emoji || '📍'}</Text></View>
@@ -269,8 +271,8 @@ export default function EventDetailScreen() {
               {creator?.avatar_url ? <Image source={{ uri: creator.avatar_url }} style={styles.creatorAvatarImg} contentFit="cover" /> : <Text style={{ fontSize: 18 }}>🧑</Text>}
             </View>
             <View style={{ flex: 1 }}>
-              <Text style={styles.creatorLabel}>Организатор</Text>
-              <Text style={styles.creatorName}>{creator?.name || 'Аноним'} {ev.creator_id ? '›' : ''}</Text>
+              <Text style={styles.creatorLabel}>{t('ev.organizer')}</Text>
+              <Text style={styles.creatorName}>{creator?.name || t('common.anon')} {ev.creator_id ? '›' : ''}</Text>
             </View>
           </TouchableOpacity>
 
@@ -278,7 +280,7 @@ export default function EventDetailScreen() {
           <TouchableOpacity style={styles.likeRow} onPress={toggleLike} disabled={likeBusy} activeOpacity={0.7}>
             <Text style={styles.likeHeart}>{liked ? '❤️' : '🤍'}</Text>
             <Text style={styles.likeCount}>{ev.likes || 0}</Text>
-            <Text style={styles.likeLabel}>{liked ? 'Вам нравится' : 'Нравится'}</Text>
+            <Text style={styles.likeLabel}>{liked ? t('ev.liked') : t('ev.like')}</Text>
           </TouchableOpacity>
 
           {/* Info */}
@@ -286,18 +288,18 @@ export default function EventDetailScreen() {
           {ev.location ? <View style={styles.infoRow}><Text style={styles.infoIcon}>📍</Text><Text style={styles.infoTxt}>{ev.location}</Text></View> : null}
           <TouchableOpacity style={styles.infoRow} onPress={toggleParticipants} activeOpacity={0.7}>
             <Text style={styles.infoIcon}>👥</Text>
-            <Text style={styles.infoTxt}>{ev.people}/{ev.max_people} участников</Text>
+            <Text style={styles.infoTxt}>{ev.people}/{ev.max_people} {t('ev.participants')}</Text>
             <Text style={styles.infoChevron}>{showParticipants ? '▲' : '▼'}</Text>
           </TouchableOpacity>
           {showParticipants && (
             <View style={styles.partList}>
-              {participants.length === 0 && <Text style={styles.partEmpty}>Список пуст или загружается…</Text>}
+              {participants.length === 0 && <Text style={styles.partEmpty}>…</Text>}
               {participants.map(p => (
                 <TouchableOpacity key={p.id} style={styles.partItem} onPress={() => router.push(`/user/${p.id}` as any)} activeOpacity={0.7}>
                   <View style={styles.partAvatar}>
                     {p.avatar_url ? <Image source={{ uri: p.avatar_url }} style={styles.partAvatarImg} contentFit="cover" /> : <Text style={{ fontSize: 16 }}>🧑</Text>}
                   </View>
-                  <Text style={styles.partName}>{p.name || 'Аноним'}</Text>
+                  <Text style={styles.partName}>{p.name || t('common.anon')}</Text>
                   <Text style={styles.chevron}>›</Text>
                 </TouchableOpacity>
               ))}
@@ -312,29 +314,29 @@ export default function EventDetailScreen() {
           {/* Join */}
           <TouchableOpacity style={[styles.joinBtn, joined && styles.joinBtnDone]} onPress={toggleJoin} disabled={joining}>
             <Text style={[styles.joinTxt, joined && styles.joinTxtDone]}>
-              {joining ? '…' : joined ? '✓ Вы участвуете — выйти' : 'Join — присоединиться'}
+              {joining ? '…' : joined ? t('ev.leave') : t('ev.join')}
             </Text>
           </TouchableOpacity>
 
           {/* Chat */}
           <TouchableOpacity style={styles.chatBtn} onPress={openChat}>
-            <Text style={styles.chatTxt}>💬 Открыть чат события</Text>
+            <Text style={styles.chatTxt}>{t('ev.openChat')}</Text>
           </TouchableOpacity>
 
           {/* Share */}
           <TouchableOpacity style={styles.chatBtn} onPress={shareEvent}>
-            <Text style={styles.chatTxt}>🔗 Поделиться ссылкой</Text>
+            <Text style={styles.chatTxt}>{t('ev.share')}</Text>
           </TouchableOpacity>
 
           {isCreator && (
             <TouchableOpacity style={styles.editBtn} onPress={() => router.push(`/edit-event/${id}` as any)}>
-              <Text style={styles.editTxt}>✏ Редактировать событие</Text>
+              <Text style={styles.editTxt}>{t('ev.edit')}</Text>
             </TouchableOpacity>
           )}
 
           {isCreator && (
             <TouchableOpacity style={styles.delBtn} onPress={deleteEvent}>
-              <Text style={styles.delTxt}>🗑 Удалить событие</Text>
+              <Text style={styles.delTxt}>{t('ev.del')}</Text>
             </TouchableOpacity>
           )}
         </View>
