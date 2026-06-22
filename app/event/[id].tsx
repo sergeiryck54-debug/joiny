@@ -4,7 +4,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { ActivityIndicator, Alert, Dimensions, Share, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { WebView } from 'react-native-webview';
 import { useI18n } from '../lib/i18n';
-import { addEventPhotos, getEventPhotos, pickImagesBase64, removeEventPhoto } from '../lib/photos';
+import { addEventMedia, captureMedia, getEventPhotos, isVideoUrl, MediaKind, PickedMedia, pickMedia, removeEventPhoto } from '../lib/photos';
 import { supabase } from '../lib/supabase';
 import { useUnread } from '../lib/unread';
 
@@ -22,6 +22,17 @@ function buildEventMapHtml(lat: number, lng: number) {
       L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {maxZoom: 19}).addTo(map);
       L.marker([${lat}, ${lng}]).addTo(map);
     </script></body></html>
+  `;
+}
+
+function buildVideoHtml(url: string) {
+  return `
+    <!DOCTYPE html><html><head>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+    <style>html,body{margin:0;background:#000;height:100%;width:100%}video{width:100%;height:100%;object-fit:contain}</style>
+    </head><body>
+    <video src="${url}" controls playsinline webkit-playsinline preload="metadata"></video>
+    </body></html>
   `;
 }
 
@@ -144,21 +155,43 @@ export default function EventDetailScreen() {
     try { await Share.share({ message: lines.join('\n') }); } catch (e) {}
   };
 
-  const addPhotos = async () => {
-    if (photoBusy || !userId) return;
+  const uploadMediaItems = async (items: PickedMedia[]) => {
+    if (!items.length || !userId) return;
+    setPhotoBusy(true);
     try {
-      const list = await pickImagesBase64(6);
-      if (!list.length) return;
-      setPhotoBusy(true);
-      await addEventPhotos(id, userId, list);
+      const { rejected } = await addEventMedia(id, userId, items);
       const ph = await getEventPhotos(id);
       setPhotos(ph);
-      setEv((e: any) => ({ ...e, photo_url: ph.length ? ph[0].url : null }));
+      const cover = ph.map((p: any) => p.url).find((u: string) => !isVideoUrl(u)) || null;
+      setEv((e: any) => ({ ...e, photo_url: cover }));
+      if (rejected > 0) Alert.alert(t('media.rejectedTitle'), t('media.rejected', { n: rejected }));
     } catch (e) {
       Alert.alert(t('ev.photoFail'), t('common.tryAgain'));
     } finally {
       setPhotoBusy(false);
     }
+  };
+
+  const captureAndAdd = (kind: MediaKind) => async () => {
+    try { const m = await captureMedia(kind); if (m) await uploadMediaItems([m]); }
+    catch (e) { Alert.alert(t('media.fail'), t('common.tryAgain')); }
+  };
+  const pickAndAdd = async () => {
+    try { const list = await pickMedia(6, true); if (list.length) await uploadMediaItems(list); }
+    catch (e) { Alert.alert(t('media.fail'), t('common.tryAgain')); }
+  };
+
+  const addPhotos = () => {
+    if (photoBusy || !userId) return;
+    Alert.alert(t('media.addTitle'), undefined, [
+      { text: t('media.camera'), onPress: () => Alert.alert(t('media.cameraTitle'), undefined, [
+        { text: t('media.photo'), onPress: captureAndAdd('image') },
+        { text: t('media.video'), onPress: captureAndAdd('video') },
+        { text: t('common.cancel'), style: 'cancel' },
+      ]) },
+      { text: t('media.gallery'), onPress: pickAndAdd },
+      { text: t('common.cancel'), style: 'cancel' },
+    ]);
   };
 
   const removePhoto = (photoId: string | null) => {
@@ -244,7 +277,9 @@ export default function EventDetailScreen() {
             <ScrollView horizontal pagingEnabled showsHorizontalScrollIndicator={false}>
               {gallery.map((p, i) => (
                 <View key={p.id || i} style={styles.slide}>
-                  <Image source={{ uri: p.url }} style={styles.photo} contentFit="cover" />
+                  {isVideoUrl(p.url)
+                    ? <WebView originWhitelist={['*']} source={{ html: buildVideoHtml(p.url) }} style={styles.photo} allowsInlineMediaPlayback mediaPlaybackRequiresUserAction={false} />
+                    : <Image source={{ uri: p.url }} style={styles.photo} contentFit="cover" />}
                   <View style={styles.photoActions}>
                     <TouchableOpacity style={styles.photoBtn} onPress={() => reportPhoto(p.url)}><Text style={styles.photoBtnTxt}>⚑</Text></TouchableOpacity>
                     {isCreator && <TouchableOpacity style={styles.photoBtn} onPress={() => removePhoto(p.id)} disabled={photoBusy}><Text style={styles.photoBtnTxt}>🗑</Text></TouchableOpacity>}

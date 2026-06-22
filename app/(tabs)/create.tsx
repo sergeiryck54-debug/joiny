@@ -2,11 +2,11 @@ import { Image } from 'expo-image';
 import * as Location from 'expo-location';
 import { useLocalSearchParams } from 'expo-router';
 import { useEffect, useRef, useState } from 'react';
-import { ActivityIndicator, Animated, LayoutAnimation, Platform, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, UIManager, View } from 'react-native';
+import { ActivityIndicator, Alert, Animated, LayoutAnimation, Platform, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, UIManager, View } from 'react-native';
 import { WebView } from 'react-native-webview';
 import { geocodeAddress, reverseGeocode } from '../lib/geocode';
 import { Lang, useI18n } from '../lib/i18n';
-import { addEventPhotos, pickImagesBase64 } from '../lib/photos';
+import { addEventMedia, captureMedia, MediaKind, PickedMedia, pickMedia } from '../lib/photos';
 import { supabase } from '../lib/supabase';
 
 // Smooth layout transitions on Android (no-op on the New Architecture, harmless on old).
@@ -107,8 +107,8 @@ export default function CreateScreen() {
   const [pinned, setPinned] = useState<{ lat: number; lng: number } | null>(null);
   const [addrEdited, setAddrEdited] = useState(false);
   const [resolvingAddr, setResolvingAddr] = useState(false);
-  // Optional event photos (base64 kept until publish, then uploaded as a gallery).
-  const [photos, setPhotos] = useState<string[]>([]);
+  // Optional event media (photos/videos kept until publish, then moderated + uploaded).
+  const [media, setMedia] = useState<PickedMedia[]>([]);
   const [mapHtml, setMapHtml] = useState('');
   // Disable form scroll while panning the mini-map, so vertical drags reach the map.
   const [formScroll, setFormScroll] = useState(true);
@@ -170,11 +170,31 @@ export default function CreateScreen() {
     } catch (e) {}
   };
 
-  const pickEventPhoto = async () => {
+  const addFromCamera = (kind: MediaKind) => async () => {
     try {
-      const list = await pickImagesBase64(6 - photos.length);
-      if (list.length) setPhotos(prev => [...prev, ...list].slice(0, 6));
-    } catch (e) {}
+      const m = await captureMedia(kind);
+      if (m) setMedia(prev => [...prev, m].slice(0, 6));
+      else if (m === null) { /* cancelled or permission denied */ }
+    } catch (e) { Alert.alert(t('media.fail'), t('common.tryAgain')); }
+  };
+
+  const addFromGallery = async () => {
+    try {
+      const list = await pickMedia(6 - media.length, true);
+      if (list.length) setMedia(prev => [...prev, ...list].slice(0, 6));
+    } catch (e) { Alert.alert(t('media.fail'), t('common.tryAgain')); }
+  };
+
+  const pickEventMedia = () => {
+    Alert.alert(t('media.addTitle'), undefined, [
+      { text: t('media.camera'), onPress: () => Alert.alert(t('media.cameraTitle'), undefined, [
+        { text: t('media.photo'), onPress: addFromCamera('image') },
+        { text: t('media.video'), onPress: addFromCamera('video') },
+        { text: t('common.cancel'), style: 'cancel' },
+      ]) },
+      { text: t('media.gallery'), onPress: addFromGallery },
+      { text: t('common.cancel'), style: 'cancel' },
+    ]);
   };
 
   const publishEvent = async () => {
@@ -207,10 +227,15 @@ export default function CreateScreen() {
         creator_id: user?.id ?? null, photo_url: null,
         starts_at: mode === 'later' ? (startsAt.trim() || null) : null,
       }).select('id').single();
-      // Auto-join the creator, then upload the photo gallery (which sets the cover).
+      // Auto-join the creator, then moderate + upload the media gallery (sets the cover).
       if (ev?.id && user) {
         await supabase.from('event_participants').insert({ event_id: ev.id, user_id: user.id });
-        if (photos.length) { try { await addEventPhotos(ev.id, user.id, photos); } catch (e) {} }
+        if (media.length) {
+          try {
+            const { rejected } = await addEventMedia(ev.id, user.id, media);
+            if (rejected > 0) Alert.alert(t('media.rejectedTitle'), t('media.rejected', { n: rejected }));
+          } catch (e) {}
+        }
       }
       setCreated(true);
     } catch (e) {}
@@ -225,7 +250,7 @@ export default function CreateScreen() {
         <Text style={styles.successEmoji}>🎉</Text>
         <Text style={styles.successTitle}>{t('create.doneTitle')}</Text>
         <Text style={styles.successSub}>{t('create.doneSub')}</Text>
-        <TouchableOpacity style={styles.successBtn} onPress={() => { setCreated(false); setTitle(''); setCategory(''); setPlace(''); setPinned(null); setAddrEdited(false); setPhotos([]); setStartsAt(''); setSelDay(null); setSelTime(null); }}>
+        <TouchableOpacity style={styles.successBtn} onPress={() => { setCreated(false); setTitle(''); setCategory(''); setPlace(''); setPinned(null); setAddrEdited(false); setMedia([]); setStartsAt(''); setSelDay(null); setSelTime(null); }}>
           <Text style={styles.successBtnTxt}>{t('create.another')}</Text>
         </TouchableOpacity>
       </View>
@@ -330,20 +355,23 @@ export default function CreateScreen() {
           )}
         </View>
 
-        {/* Photos */}
+        {/* Media (photos + videos) */}
         <View style={styles.field}>
-          <Text style={styles.label}>{t('create.photos')} ({photos.length}/6)</Text>
+          <Text style={styles.label}>{t('create.photos')} ({media.length}/6)</Text>
           <View style={styles.photoGrid}>
-            {photos.map((b64, i) => (
+            {media.map((m, i) => (
               <View key={i} style={styles.thumbWrap}>
-                <Image source={{ uri: `data:image/jpeg;base64,${b64}` }} style={styles.thumb} contentFit="cover" />
-                <TouchableOpacity style={styles.thumbX} onPress={() => setPhotos(prev => prev.filter((_, idx) => idx !== i))}>
+                {m.base64
+                  ? <Image source={{ uri: `data:image/jpeg;base64,${m.base64}` }} style={styles.thumb} contentFit="cover" />
+                  : <View style={[styles.thumb, styles.thumbVideoFallback]}><Text style={{ fontSize: 28 }}>🎬</Text></View>}
+                {m.type === 'video' && <View style={styles.playBadge}><Text style={styles.playBadgeTxt}>▶</Text></View>}
+                <TouchableOpacity style={styles.thumbX} onPress={() => setMedia(prev => prev.filter((_, idx) => idx !== i))}>
                   <Text style={styles.thumbXTxt}>✕</Text>
                 </TouchableOpacity>
               </View>
             ))}
-            {photos.length < 6 && (
-              <TouchableOpacity style={styles.thumbAdd} onPress={pickEventPhoto}>
+            {media.length < 6 && (
+              <TouchableOpacity style={styles.thumbAdd} onPress={pickEventMedia}>
                 <Text style={styles.thumbAddTxt}>＋</Text>
               </TouchableOpacity>
             )}
@@ -457,6 +485,9 @@ const styles = StyleSheet.create({
   photoGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
   thumbWrap: { width: 84, height: 84, borderRadius: 10, overflow: 'hidden' },
   thumb: { width: 84, height: 84 },
+  thumbVideoFallback: { backgroundColor: '#16263F', alignItems: 'center', justifyContent: 'center' },
+  playBadge: { position: 'absolute', left: 0, right: 0, top: 0, bottom: 0, alignItems: 'center', justifyContent: 'center' },
+  playBadgeTxt: { color: 'rgba(255,255,255,0.9)', fontSize: 24, textShadowColor: 'rgba(0,0,0,0.5)', textShadowRadius: 4 },
   thumbX: { position: 'absolute', top: 2, right: 2, width: 22, height: 22, borderRadius: 11, backgroundColor: 'rgba(17,17,16,0.75)', alignItems: 'center', justifyContent: 'center' },
   thumbXTxt: { color: '#fff', fontSize: 12, fontWeight: '700' },
   thumbAdd: { width: 84, height: 84, borderRadius: 10, borderWidth: 1.5, borderColor: '#E5E5DF', borderStyle: 'dashed', backgroundColor: '#fff', alignItems: 'center', justifyContent: 'center' },

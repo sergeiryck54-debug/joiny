@@ -5,7 +5,7 @@ import { ActivityIndicator, Alert, ScrollView, StyleSheet, Text, TextInput, Touc
 import { WebView } from 'react-native-webview';
 import { reverseGeocode } from '../lib/geocode';
 import { useI18n } from '../lib/i18n';
-import { addEventPhotos, getEventPhotos, pickImagesBase64, removeEventPhoto } from '../lib/photos';
+import { addEventMedia, captureMedia, getEventPhotos, isVideoUrl, MediaKind, PickedMedia, pickMedia, removeEventPhoto } from '../lib/photos';
 import { supabase } from '../lib/supabase';
 
 const CATEGORIES = [
@@ -95,22 +95,44 @@ export default function EditEventScreen() {
   const refreshPhotos = async () => {
     const ph = await getEventPhotos(id);
     setPhotos(ph);
-    setCoverUrl(ph.length ? ph[0].url : '');
+    const cover = ph.map((p: any) => p.url).find((u: string) => !isVideoUrl(u)) || '';
+    setCoverUrl(cover);
   };
 
-  const addPhotos = async () => {
-    if (photoBusy || !userId) return;
+  const uploadMediaItems = async (items: PickedMedia[]) => {
+    if (!items.length || !userId) return;
+    setPhotoBusy(true);
     try {
-      const list = await pickImagesBase64(6);
-      if (!list.length) return;
-      setPhotoBusy(true);
-      await addEventPhotos(id, userId, list);
+      const { rejected } = await addEventMedia(id, userId, items);
       await refreshPhotos();
+      if (rejected > 0) Alert.alert(t('media.rejectedTitle'), t('media.rejected', { n: rejected }));
     } catch (e) {
       Alert.alert(t('ev.photoFail'), t('common.tryAgain'));
     } finally {
       setPhotoBusy(false);
     }
+  };
+
+  const captureAndAdd = (kind: MediaKind) => async () => {
+    try { const m = await captureMedia(kind); if (m) await uploadMediaItems([m]); }
+    catch (e) { Alert.alert(t('media.fail'), t('common.tryAgain')); }
+  };
+  const pickAndAdd = async () => {
+    try { const list = await pickMedia(6, true); if (list.length) await uploadMediaItems(list); }
+    catch (e) { Alert.alert(t('media.fail'), t('common.tryAgain')); }
+  };
+
+  const addPhotos = () => {
+    if (photoBusy || !userId) return;
+    Alert.alert(t('media.addTitle'), undefined, [
+      { text: t('media.camera'), onPress: () => Alert.alert(t('media.cameraTitle'), undefined, [
+        { text: t('media.photo'), onPress: captureAndAdd('image') },
+        { text: t('media.video'), onPress: captureAndAdd('video') },
+        { text: t('common.cancel'), style: 'cancel' },
+      ]) },
+      { text: t('media.gallery'), onPress: pickAndAdd },
+      { text: t('common.cancel'), style: 'cancel' },
+    ]);
   };
 
   const removePhoto = (photoId: string | null) => {
@@ -207,7 +229,9 @@ export default function EditEventScreen() {
           <View style={styles.photoGrid}>
             {gallery.map((p, i) => (
               <View key={p.id || i} style={styles.thumbWrap}>
-                <Image source={{ uri: p.url }} style={styles.thumb} contentFit="cover" />
+                {isVideoUrl(p.url)
+                  ? <View style={[styles.thumb, styles.thumbVideo]}><Text style={{ fontSize: 26 }}>🎬</Text></View>
+                  : <Image source={{ uri: p.url }} style={styles.thumb} contentFit="cover" />}
                 <TouchableOpacity style={styles.thumbX} onPress={() => removePhoto(p.id)} disabled={photoBusy}><Text style={styles.thumbXTxt}>✕</Text></TouchableOpacity>
               </View>
             ))}
@@ -265,6 +289,7 @@ const styles = StyleSheet.create({
   photoGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
   thumbWrap: { width: 84, height: 84, borderRadius: 10, overflow: 'hidden' },
   thumb: { width: 84, height: 84 },
+  thumbVideo: { backgroundColor: '#16263F', alignItems: 'center', justifyContent: 'center' },
   thumbX: { position: 'absolute', top: 2, right: 2, width: 22, height: 22, borderRadius: 11, backgroundColor: 'rgba(17,17,16,0.75)', alignItems: 'center', justifyContent: 'center' },
   thumbXTxt: { color: '#fff', fontSize: 12, fontWeight: '700' },
   thumbAdd: { width: 84, height: 84, borderRadius: 10, borderWidth: 1.5, borderColor: '#E5E5DF', borderStyle: 'dashed', backgroundColor: '#fff', alignItems: 'center', justifyContent: 'center' },

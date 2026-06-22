@@ -43,7 +43,15 @@
       ],
       "expo-font",
       "expo-image",
-      "expo-web-browser"
+      "expo-web-browser",
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "Allow Joiny to access your photos to add event photos.",
+          "cameraPermission": "Allow Joiny to use the camera to take event photos and videos.",
+          "microphonePermission": "Allow Joiny to use the microphone to record video with sound."
+        }
+      ]
     ],
     "experiments": {
       "typedRoutes": true

@@ -83,6 +83,18 @@ const TR: Record<string, Record<Lang, string>> = {
   'create.doneTitle': { EN: 'Event Created!', RU: 'Событие создано!', TH: 'สร้างกิจกรรมแล้ว!' },
   'create.doneSub': { EN: 'People nearby will see your event on the map right now', RU: 'Люди рядом увидят твоё событие на карте прямо сейчас', TH: 'คนใกล้เคียงจะเห็นกิจกรรมของคุณบนแผนที่ทันที' },
   'create.another': { EN: 'Create Another →', RU: 'Создать ещё →', TH: 'สร้างอีก →' },
+
+  // ---- media / camera / moderation ----
+  'media.addTitle': { EN: 'Add media', RU: 'Добавить медиа', TH: 'เพิ่มสื่อ' },
+  'media.camera': { EN: '📷 Camera', RU: '📷 Камера', TH: '📷 กล้อง' },
+  'media.gallery': { EN: '🖼 Gallery', RU: '🖼 Галерея', TH: '🖼 แกลเลอรี' },
+  'media.cameraTitle': { EN: 'Take with camera', RU: 'Снять на камеру', TH: 'ถ่ายด้วยกล้อง' },
+  'media.photo': { EN: '📸 Photo', RU: '📸 Фото', TH: '📸 รูปภาพ' },
+  'media.video': { EN: '🎥 Video', RU: '🎥 Видео', TH: '🎥 วิดีโอ' },
+  'media.fail': { EN: "Couldn't add media", RU: 'Не удалось добавить медиа', TH: 'เพิ่มสื่อไม่สำเร็จ' },
+  'media.rejectedTitle': { EN: 'Moderation', RU: 'Модерация', TH: 'การตรวจสอบ' },
+  'media.rejected': { EN: '{n} file(s) were blocked as inappropriate and not published.', RU: '{n} файл(ов) отклонены модерацией и не опубликованы.', TH: 'ไฟล์ {n} รายการถูกบล็อกและไม่ถูกเผยแพร่' },
+  'media.uploading': { EN: 'Checking & uploading…', RU: 'Проверка и загрузка…', TH: 'กำลังตรวจสอบและอัปโหลด…' },
   'cat.Sport': { EN: 'Sport', RU: 'Спорт', TH: 'กีฬา' },
   'cat.Music': { EN: 'Music', RU: 'Музыка', TH: 'ดนตรี' },
   'cat.Food': { EN: 'Food', RU: 'Еда', TH: 'อาหาร' },

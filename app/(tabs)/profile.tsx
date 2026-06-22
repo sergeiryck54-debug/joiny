@@ -1,10 +1,9 @@
-import { decode } from 'base64-arraybuffer';
 import { Image } from 'expo-image';
-import * as ImagePicker from 'expo-image-picker';
 import { router, useFocusEffect } from 'expo-router';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { ActivityIndicator, Alert, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { useI18n } from '../lib/i18n';
+import { captureAvatarImage, moderateImageBase64, PickedMedia, pickAvatarImage, uploadJpeg } from '../lib/photos';
 import { supabase } from '../lib/supabase';
 import { useUnread } from '../lib/unread';
 
@@ -104,24 +103,13 @@ export default function ProfileScreen() {
     setInterests(prev => prev.includes(tag) ? prev.filter(t => t !== tag) : [...prev, tag]);
   };
 
-  const pickAvatar = async () => {
-    if (!userId || uploadingAvatar) return;
+  const uploadAvatar = async (m: PickedMedia | null) => {
+    if (!m || !userId) return;
+    setUploadingAvatar(true);
     try {
-      const result = await ImagePicker.launchImageLibraryAsync({
-        mediaTypes: ImagePicker.MediaTypeOptions.Images,
-        allowsEditing: true,
-        aspect: [1, 1],
-        quality: 0.6,
-        base64: true,
-      });
-      if (result.canceled || !result.assets?.length || !result.assets[0].base64) return;
-      setUploadingAvatar(true);
-      const path = `${userId}/avatar.jpg`;
-      const { error: upErr } = await supabase.storage.from('avatars')
-        .upload(path, decode(result.assets[0].base64!), { contentType: 'image/jpeg', upsert: true });
-      if (upErr) throw upErr;
-      const { data: pub } = supabase.storage.from('avatars').getPublicUrl(path);
-      const url = `${pub.publicUrl}?t=${Date.now()}`;
+      const mod = await moderateImageBase64(m.base64);
+      if (!mod.approved) { Alert.alert(t('media.rejectedTitle'), t('media.rejected', { n: 1 })); return; }
+      const url = await uploadJpeg('avatars', `${userId}/avatar.jpg`, m.base64);
       await supabase.from('profiles').upsert({ id: userId, avatar_url: url });
       setAvatarUrl(url);
     } catch (e) {
@@ -129,6 +117,15 @@ export default function ProfileScreen() {
     } finally {
       setUploadingAvatar(false);
     }
+  };
+
+  const pickAvatar = () => {
+    if (!userId || uploadingAvatar) return;
+    Alert.alert(t('media.addTitle'), undefined, [
+      { text: t('media.camera'), onPress: async () => uploadAvatar(await captureAvatarImage()) },
+      { text: t('media.gallery'), onPress: async () => uploadAvatar(await pickAvatarImage()) },
+      { text: t('common.cancel'), style: 'cancel' },
+    ]);
   };
 
   const deleteEvent = (id: string) => {
