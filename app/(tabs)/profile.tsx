@@ -6,11 +6,13 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { ActivityIndicator, Alert, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { useI18n } from '../lib/i18n';
 import { supabase } from '../lib/supabase';
+import { useUnread } from '../lib/unread';
 
-const ALL_INTERESTS = ['⚽ Sport', '🎸 Music', '🏃 Running', '📸 Photo', '🐕 Dog Walks', '🎲 Board Games', '🍕 Food', '📚 Books', '🧘 Yoga', '🎨 Art'];
+const ALL_INTERESTS =['⚽ Sport', '🎸 Music', '🏃 Running', '📸 Photo', '🐕 Dog Walks', '🎲 Board Games', '🍕 Food', '📚 Books', '🧘 Yoga', '🎨 Art'];
 
 export default function ProfileScreen() {
   const { t } = useI18n();
+  const { counts } = useUnread();
   const [email, setEmail] = useState('');
   const [userId, setUserId] = useState('');
   const [name, setName] = useState('');
@@ -166,21 +168,27 @@ export default function ProfileScreen() {
     return <View style={styles.loadingWrap}><ActivityIndicator size="large" color="#2FB6A8" /></View>;
   }
 
-  const renderEvent = (e: any, withDelete: boolean) => (
-    <View key={e.id} style={styles.eventCard}>
-      <TouchableOpacity style={styles.eventMain} onPress={() => router.push(`/event/${e.id}` as any)} activeOpacity={0.7}>
-        <Text style={styles.eventEmoji}>{e.emoji}</Text>
-        <View style={{ flex: 1 }}>
-          <Text style={styles.eventTitle}>{e.title}</Text>
-          {e.location ? <Text style={styles.eventMeta} numberOfLines={1}>📍 {e.location}</Text> : null}
-          <Text style={styles.eventMeta}>👥 {e.people}/{e.max_people} · ❤️ {e.likes || 0} · {e.is_now ? t('common.now') : t('common.later')}</Text>
-        </View>
-      </TouchableOpacity>
-      {withDelete
-        ? <TouchableOpacity style={styles.eventDelBtn} onPress={() => deleteEvent(e.id)}><Text style={styles.eventDelTxt}>🗑</Text></TouchableOpacity>
-        : <Text style={styles.chevron}>›</Text>}
-    </View>
-  );
+  const renderEvent = (e: any, withDelete: boolean) => {
+    const unread = counts[e.id] || 0;
+    return (
+      <View key={e.id} style={styles.eventCard}>
+        <TouchableOpacity style={styles.eventMain} onPress={() => router.push(`/event/${e.id}` as any)} activeOpacity={0.7}>
+          <Text style={styles.eventEmoji}>{e.emoji}</Text>
+          <View style={{ flex: 1 }}>
+            <Text style={styles.eventTitle}>{e.title}</Text>
+            {e.location ? <Text style={styles.eventMeta} numberOfLines={1}>📍 {e.location}</Text> : null}
+            <Text style={styles.eventMeta}>👥 {e.people}/{e.max_people} · ❤️ {e.likes || 0} · {e.is_now ? t('common.now') : t('common.later')}</Text>
+          </View>
+        </TouchableOpacity>
+        {unread > 0 && (
+          <View style={styles.unreadBadge}><Text style={styles.unreadBadgeTxt}>{unread > 99 ? '99+' : unread}</Text></View>
+        )}
+        {withDelete
+          ? <TouchableOpacity style={styles.eventDelBtn} onPress={() => deleteEvent(e.id)}><Text style={styles.eventDelTxt}>🗑</Text></TouchableOpacity>
+          : <Text style={styles.chevron}>›</Text>}
+      </View>
+    );
+  };
 
   return (
     <ScrollView style={styles.container} showsVerticalScrollIndicator={false}>
@@ -356,6 +364,8 @@ const styles = StyleSheet.create({
   empty: { fontSize: 13, color: '#888' },
   eventCard: { flexDirection: 'row', alignItems: 'center', gap: 12, backgroundColor: '#fff', borderRadius: 14, padding: 12, marginBottom: 8, borderWidth: 1, borderColor: '#E5E5DF' },
   eventMain: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: 12 },
+  unreadBadge: { minWidth: 22, height: 22, borderRadius: 11, backgroundColor: '#2FB6A8', alignItems: 'center', justifyContent: 'center', paddingHorizontal: 6 },
+  unreadBadgeTxt: { color: '#16263F', fontSize: 11, fontWeight: '800' },
   eventDelBtn: { width: 36, height: 36, borderRadius: 10, backgroundColor: '#FDECEC', alignItems: 'center', justifyContent: 'center' },
   eventDelTxt: { fontSize: 16 },
   eventEmoji: { fontSize: 24 },

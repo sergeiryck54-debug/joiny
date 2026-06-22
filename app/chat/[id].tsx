@@ -1,12 +1,14 @@
-import { router, useLocalSearchParams } from 'expo-router';
-import { useEffect, useRef, useState } from 'react';
+import { router, useFocusEffect, useLocalSearchParams } from 'expo-router';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { ActivityIndicator, FlatList, KeyboardAvoidingView, Platform, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { useI18n } from '../lib/i18n';
 import { supabase } from '../lib/supabase';
+import { useUnread } from '../lib/unread';
 
 export default function EventChatScreen() {
   const { t } = useI18n();
   const { id } = useLocalSearchParams<{ id: string }>();
+  const { markRead, setActiveEvent } = useUnread();
   const [messages, setMessages] = useState<any[]>([]);
   const [text, setText] = useState('');
   const [loading, setLoading] = useState(true);
@@ -42,12 +44,23 @@ export default function EventChatScreen() {
           { event: 'INSERT', schema: 'public', table: 'event_messages', filter: `event_id=eq.${id}` },
           (payload) => {
             setMessages(prev => prev.some(m => m.id === (payload.new as any).id) ? prev : [...prev, payload.new]);
+            // Viewing the chat = caught up; keep the read marker ahead of new messages.
+            markRead(id);
           })
         .subscribe();
     })();
 
     return () => { if (channel) supabase.removeChannel(channel); };
-  }, [id]);
+  }, [id, markRead]);
+
+  // While this chat is open it is "active" (no badge / no buzz), and opening it
+  // marks everything read.
+  useFocusEffect(useCallback(() => {
+    if (!id) return;
+    setActiveEvent(id);
+    markRead(id);
+    return () => setActiveEvent(null);
+  }, [id, markRead, setActiveEvent]));
 
   const send = async () => {
     const body = text.trim();

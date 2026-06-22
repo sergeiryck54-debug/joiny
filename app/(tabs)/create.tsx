@@ -1,13 +1,31 @@
 import { Image } from 'expo-image';
 import * as Location from 'expo-location';
 import { useLocalSearchParams } from 'expo-router';
-import { useEffect, useState } from 'react';
-import { ActivityIndicator, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import { useEffect, useRef, useState } from 'react';
+import { ActivityIndicator, Animated, LayoutAnimation, Platform, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, UIManager, View } from 'react-native';
 import { WebView } from 'react-native-webview';
 import { geocodeAddress, reverseGeocode } from '../lib/geocode';
-import { useI18n } from '../lib/i18n';
+import { Lang, useI18n } from '../lib/i18n';
 import { addEventPhotos, pickImagesBase64 } from '../lib/photos';
 import { supabase } from '../lib/supabase';
+
+// Smooth layout transitions on Android (no-op on the New Architecture, harmless on old).
+if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
+  UIManager.setLayoutAnimationEnabledExperimental(true);
+}
+
+const pad = (n: number) => String(n).padStart(2, '0');
+
+// Short weekday names per language (Sun..Sat).
+const WEEKDAYS: Record<Lang, string[]> = {
+  EN: ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'],
+  RU: ['Вс', 'Пн', 'Вт', 'Ср', 'Чт', 'Пт', 'Сб'],
+  TH: ['อา', 'จ', 'อ', 'พ', 'พฤ', 'ศ', 'ส'],
+};
+
+// Selectable time slots: every 30 min from 07:00 to 23:30.
+const TIME_SLOTS: string[] = [];
+for (let h = 7; h <= 23; h++) { TIME_SLOTS.push(`${pad(h)}:00`); TIME_SLOTS.push(`${pad(h)}:30`); }
 
 const CATEGORIES = [
   { emoji: '⚽', label: 'Sport' },
@@ -45,7 +63,7 @@ function buildPickerHtml(center: { lat: number; lng: number }, pin: { lat: numbe
 }
 
 export default function CreateScreen() {
-  const { t } = useI18n();
+  const { t, lang } = useI18n();
   const params = useLocalSearchParams<{ lat?: string; lng?: string }>();
   const [mode, setMode] = useState<'now' | 'later'>('now');
   const [title, setTitle] = useState('');
@@ -53,6 +71,36 @@ export default function CreateScreen() {
   const [place, setPlace] = useState('');
   const [maxPeople, setMaxPeople] = useState('6');
   const [startsAt, setStartsAt] = useState('');
+  // Date/time picker selection: day index (0 = today) + "HH:MM" slot.
+  const [selDay, setSelDay] = useState<number | null>(null);
+  const [selTime, setSelTime] = useState<string | null>(null);
+  const previewScale = useRef(new Animated.Value(1)).current;
+
+  // Next 14 days from today (stable within a session).
+  const days = useRef(Array.from({ length: 14 }, (_, i) => {
+    const d = new Date(); d.setHours(0, 0, 0, 0); d.setDate(d.getDate() + i); return d;
+  })).current;
+
+  const dayLabel = (i: number, d: Date) =>
+    i === 0 ? t('create.today')
+      : i === 1 ? t('create.tomorrow')
+        : `${WEEKDAYS[lang][d.getDay()]} ${d.getDate()}.${pad(d.getMonth() + 1)}`;
+
+  // A little spring "pop" whenever the selection changes.
+  const pop = () => {
+    previewScale.setValue(0.9);
+    Animated.spring(previewScale, { toValue: 1, friction: 4, tension: 80, useNativeDriver: true }).start();
+  };
+
+  // Keep the stored free-text date in sync with the picker selection.
+  useEffect(() => {
+    if (mode === 'later' && selDay !== null && selTime) {
+      setStartsAt(`${dayLabel(selDay, days[selDay])} ${t('create.at')} ${selTime}`);
+    } else if (mode === 'later') {
+      setStartsAt('');
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selDay, selTime, mode, lang]);
   const [created, setCreated] = useState(false);
   const [saving, setSaving] = useState(false);
   // Exact point picked on the map (if the user arrived by tapping the map).
@@ -177,7 +225,7 @@ export default function CreateScreen() {
         <Text style={styles.successEmoji}>🎉</Text>
         <Text style={styles.successTitle}>{t('create.doneTitle')}</Text>
         <Text style={styles.successSub}>{t('create.doneSub')}</Text>
-        <TouchableOpacity style={styles.successBtn} onPress={() => { setCreated(false); setTitle(''); setCategory(''); setPlace(''); setPinned(null); setAddrEdited(false); setPhotos([]); setStartsAt(''); }}>
+        <TouchableOpacity style={styles.successBtn} onPress={() => { setCreated(false); setTitle(''); setCategory(''); setPlace(''); setPinned(null); setAddrEdited(false); setPhotos([]); setStartsAt(''); setSelDay(null); setSelTime(null); }}>
           <Text style={styles.successBtnTxt}>{t('create.another')}</Text>
         </TouchableOpacity>
       </View>
@@ -197,13 +245,13 @@ export default function CreateScreen() {
         <View style={styles.modeWrap}>
           <TouchableOpacity
             style={[styles.modeBtn, mode === 'now' && styles.modeBtnOn]}
-            onPress={() => setMode('now')}
+            onPress={() => { LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut); setMode('now'); }}
           >
             <Text style={[styles.modeTxt, mode === 'now' && styles.modeTxtOn]}>{t('create.rightNow')}</Text>
           </TouchableOpacity>
           <TouchableOpacity
             style={[styles.modeBtn, mode === 'later' && styles.modeBtnOn]}
-            onPress={() => setMode('later')}
+            onPress={() => { LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut); setMode('later'); }}
           >
             <Text style={[styles.modeTxt, mode === 'later' && styles.modeTxtOn]}>{t('create.planAhead')}</Text>
           </TouchableOpacity>
@@ -322,17 +370,55 @@ export default function CreateScreen() {
           </View>
         </View>
 
-        {/* Time (only for later) */}
+        {/* Date & time picker (only for later) */}
         {mode === 'later' && (
           <View style={styles.field}>
-            <Text style={styles.label}>{t('create.dateTime')}</Text>
-            <TextInput
-              style={styles.input}
-              placeholder={t('create.dateTimePh')}
-              placeholderTextColor="#aaa"
-              value={startsAt}
-              onChangeText={setStartsAt}
-            />
+            <Text style={styles.label}>{t('create.day')}</Text>
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.chipRow}>
+              {days.map((d, i) => {
+                const on = selDay === i;
+                return (
+                  <TouchableOpacity
+                    key={i}
+                    style={[styles.dayChip, on && styles.chipOn]}
+                    onPress={() => { LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut); setSelDay(i); pop(); }}
+                    activeOpacity={0.8}
+                  >
+                    <Text style={[styles.dayChipTop, on && styles.chipTxtOn]}>
+                      {i === 0 ? t('create.today') : i === 1 ? t('create.tomorrow') : WEEKDAYS[lang][d.getDay()]}
+                    </Text>
+                    {i > 1 && <Text style={[styles.dayChipNum, on && styles.chipTxtOn]}>{d.getDate()}.{pad(d.getMonth() + 1)}</Text>}
+                  </TouchableOpacity>
+                );
+              })}
+            </ScrollView>
+
+            {selDay !== null && (
+              <>
+                <Text style={[styles.label, { marginTop: 16 }]}>{t('create.time')}</Text>
+                <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.chipRow}>
+                  {TIME_SLOTS.map(tm => {
+                    const on = selTime === tm;
+                    return (
+                      <TouchableOpacity
+                        key={tm}
+                        style={[styles.timeChip, on && styles.chipOn]}
+                        onPress={() => { setSelTime(tm); pop(); }}
+                        activeOpacity={0.8}
+                      >
+                        <Text style={[styles.timeChipTxt, on && styles.chipTxtOn]}>{tm}</Text>
+                      </TouchableOpacity>
+                    );
+                  })}
+                </ScrollView>
+              </>
+            )}
+
+            {selDay !== null && selTime && (
+              <Animated.View style={[styles.previewPill, { transform: [{ scale: previewScale }] }]}>
+                <Text style={styles.previewTxt}>📅 {dayLabel(selDay, days[selDay])} {t('create.at')} {selTime}</Text>
+              </Animated.View>
+            )}
           </View>
         )}
 
@@ -386,6 +472,16 @@ const styles = StyleSheet.create({
   counterBtn: { width: 44, height: 44, borderRadius: 12, backgroundColor: '#fff', borderWidth: 1.5, borderColor: '#E5E5DF', alignItems: 'center', justifyContent: 'center' },
   counterBtnTxt: { fontSize: 22, fontWeight: '700', color: '#16263F' },
   counterVal: { fontSize: 24, fontWeight: '800', color: '#16263F', minWidth: 40, textAlign: 'center' },
+  chipRow: { gap: 8, paddingVertical: 2, paddingRight: 4 },
+  dayChip: { minWidth: 58, paddingHorizontal: 12, paddingVertical: 10, borderRadius: 12, borderWidth: 1.5, borderColor: '#E5E5DF', backgroundColor: '#fff', alignItems: 'center', justifyContent: 'center' },
+  dayChipTop: { fontSize: 13, fontWeight: '700', color: '#16263F' },
+  dayChipNum: { fontSize: 11, fontWeight: '600', color: '#888', marginTop: 2 },
+  timeChip: { paddingHorizontal: 14, paddingVertical: 10, borderRadius: 12, borderWidth: 1.5, borderColor: '#E5E5DF', backgroundColor: '#fff', alignItems: 'center', justifyContent: 'center' },
+  timeChipTxt: { fontSize: 14, fontWeight: '700', color: '#16263F' },
+  chipOn: { backgroundColor: '#16263F', borderColor: '#16263F' },
+  chipTxtOn: { color: '#2FB6A8' },
+  previewPill: { alignSelf: 'flex-start', marginTop: 16, backgroundColor: '#E7F7F4', borderWidth: 1.5, borderColor: '#2FB6A8', borderRadius: 22, paddingHorizontal: 16, paddingVertical: 10 },
+  previewTxt: { fontSize: 15, fontWeight: '800', color: '#16263F' },
   createBtn: { backgroundColor: '#16263F', padding: 16, borderRadius: 14, alignItems: 'center', marginTop: 8 },
   createBtnOff: { opacity: 0.4 },
   createBtnTxt: { fontSize: 17, fontWeight: '700', color: '#2FB6A8' },

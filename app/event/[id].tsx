@@ -6,6 +6,7 @@ import { WebView } from 'react-native-webview';
 import { useI18n } from '../lib/i18n';
 import { addEventPhotos, getEventPhotos, pickImagesBase64, removeEventPhoto } from '../lib/photos';
 import { supabase } from '../lib/supabase';
+import { useUnread } from '../lib/unread';
 
 const SCREEN_W = Dimensions.get('window').width;
 
@@ -26,6 +27,7 @@ function buildEventMapHtml(lat: number, lng: number) {
 
 export default function EventDetailScreen() {
   const { t } = useI18n();
+  const { counts } = useUnread();
   const { id } = useLocalSearchParams<{ id: string }>();
   const [ev, setEv] = useState<any>(null);
   const [creator, setCreator] = useState<any>(null);
@@ -321,6 +323,9 @@ export default function EventDetailScreen() {
           {/* Chat */}
           <TouchableOpacity style={styles.chatBtn} onPress={openChat}>
             <Text style={styles.chatTxt}>{t('ev.openChat')}</Text>
+            {(counts[id] || 0) > 0 && (
+              <View style={styles.chatBadge}><Text style={styles.chatBadgeTxt}>{counts[id] > 99 ? '99+' : counts[id]}</Text></View>
+            )}
           </TouchableOpacity>
 
           {/* Share */}
@@ -395,8 +400,10 @@ const styles = StyleSheet.create({
   joinBtnDone: { backgroundColor: '#16263F' },
   joinTxt: { fontSize: 16, fontWeight: '800', color: '#16263F' },
   joinTxtDone: { color: '#2FB6A8' },
-  chatBtn: { padding: 14, borderRadius: 14, alignItems: 'center', borderWidth: 1.5, borderColor: '#E5E5DF', backgroundColor: '#fff', marginBottom: 10 },
+  chatBtn: { padding: 14, borderRadius: 14, alignItems: 'center', justifyContent: 'center', borderWidth: 1.5, borderColor: '#E5E5DF', backgroundColor: '#fff', marginBottom: 10 },
   chatTxt: { fontSize: 15, fontWeight: '700', color: '#16263F' },
+  chatBadge: { position: 'absolute', right: 14, top: '50%', marginTop: -12, minWidth: 24, height: 24, borderRadius: 12, backgroundColor: '#2FB6A8', alignItems: 'center', justifyContent: 'center', paddingHorizontal: 7 },
+  chatBadgeTxt: { color: '#16263F', fontSize: 12, fontWeight: '800' },
   editBtn: { padding: 14, borderRadius: 14, alignItems: 'center', backgroundColor: '#16263F', marginBottom: 10 },
   editTxt: { fontSize: 15, fontWeight: '700', color: '#2FB6A8' },
   delBtn: { padding: 14, borderRadius: 14, alignItems: 'center', backgroundColor: '#FDECEC', marginTop: 4 },

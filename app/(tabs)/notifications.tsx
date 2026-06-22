@@ -3,12 +3,14 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { ActivityIndicator, Alert, RefreshControl, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { useI18n } from '../lib/i18n';
 import { supabase } from '../lib/supabase';
+import { useUnread } from '../lib/unread';
 
 const TABS = ['All', 'Events', 'Posts'];
 const TAB_KEY: Record<string, string> = { All: 'notif.all', Events: 'notif.events', Posts: 'notif.posts' };
 
 export default function NotificationsScreen() {
   const { t } = useI18n();
+  const { items: unreadChats, refresh: refreshUnread } = useUnread();
   const [activeTab, setActiveTab] = useState('All');
   const [items, setItems] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -55,9 +57,10 @@ export default function NotificationsScreen() {
   // Refresh when returning to this tab.
   const firstFocus = useRef(true);
   useFocusEffect(useCallback(() => {
+    refreshUnread();
     if (firstFocus.current) { firstFocus.current = false; return; }
     fetchAll();
-  }, []));
+  }, [refreshUnread]));
 
   const deleteEvent = (eventId: string) => {
     Alert.alert(t('map.delQ'), t('map.delMsg'), [
@@ -115,7 +118,25 @@ export default function NotificationsScreen() {
         showsVerticalScrollIndicator={false}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
       >
-        {filtered.length === 0 && (
+        {unreadChats.length > 0 && (
+          <View style={styles.unreadSection}>
+            <Text style={styles.unreadHeader}>💬 {t('notif.unreadTitle')}</Text>
+            {unreadChats.map(c => (
+              <TouchableOpacity key={c.event_id} style={styles.unreadItem} onPress={() => router.push(`/chat/${c.event_id}` as any)} activeOpacity={0.7}>
+                <View style={styles.unreadEmojiWrap}>
+                  <Text style={styles.avatarEmoji}>{c.emoji || '📍'}</Text>
+                  <View style={styles.unreadCountDot}><Text style={styles.unreadCountTxt}>{c.unread > 99 ? '99+' : c.unread}</Text></View>
+                </View>
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.notifText} numberOfLines={1}>{c.title}</Text>
+                  <Text style={styles.unreadMeta}>{t('notif.unreadCount', { n: c.unread })} · {t('notif.openChat')}</Text>
+                </View>
+              </TouchableOpacity>
+            ))}
+          </View>
+        )}
+
+        {filtered.length === 0 && unreadChats.length === 0 && (
           <View style={styles.empty}>
             <Text style={styles.emptyIcon}>🔔</Text>
             <Text style={styles.emptyTitle}>{t('notif.emptyTitle')}</Text>
@@ -159,6 +180,13 @@ const styles = StyleSheet.create({
   tabOn: { borderBottomColor: '#2FB6A8' },
   tabTxt: { fontSize: 12, fontWeight: '700', color: '#888', textTransform: 'uppercase' },
   tabTxtOn: { color: '#16263F' },
+  unreadSection: { paddingTop: 6, paddingBottom: 8, borderBottomWidth: 8, borderBottomColor: '#F2F2EE' },
+  unreadHeader: { fontSize: 12, fontWeight: '800', color: '#1E8C80', textTransform: 'uppercase', paddingHorizontal: 16, paddingTop: 12, paddingBottom: 4 },
+  unreadItem: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingHorizontal: 16, paddingVertical: 12 },
+  unreadEmojiWrap: { width: 44, height: 44, borderRadius: 22, backgroundColor: '#D9F4EF', alignItems: 'center', justifyContent: 'center' },
+  unreadCountDot: { position: 'absolute', top: -4, right: -4, minWidth: 20, height: 20, borderRadius: 10, backgroundColor: '#2FB6A8', borderWidth: 2, borderColor: '#FAFAF7', alignItems: 'center', justifyContent: 'center', paddingHorizontal: 4 },
+  unreadCountTxt: { color: '#16263F', fontSize: 10, fontWeight: '800' },
+  unreadMeta: { fontSize: 12, color: '#1E8C80', fontWeight: '700', marginTop: 2 },
   item: { flexDirection: 'row', alignItems: 'flex-start', gap: 12, padding: 16, borderBottomWidth: 1, borderBottomColor: '#E5E5DF' },
   avatar: { width: 44, height: 44, borderRadius: 22, alignItems: 'center', justifyContent: 'center' },
   avatarEmoji: { fontSize: 22 },

@@ -233,7 +233,7 @@ export default function MapScreen() {
           <Text style={styles.statLbl}>{t('map.nearby')}</Text>
         </View>
         <View style={styles.stat}>
-          <Text style={styles.statNum}>147</Text>
+          <Text style={styles.statNum}>{events.reduce((s, e) => s + (e.people || 0), 0)}</Text>
           <Text style={styles.statLbl}>{t('map.people')}</Text>
         </View>
       </View>
