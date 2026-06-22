@@ -41,7 +41,7 @@ Deno.serve(async (req: Request) => {
         "content-type": "application/json",
       },
       body: JSON.stringify({
-        model: "claude-opus-4-8", // swap to "claude-haiku-4-5" for cheaper/faster moderation at scale
+        model: "claude-haiku-4-5", // fast, cheap, vision-capable — well-suited to moderation at scale
         max_tokens: 256,
         system: SYSTEM,
         messages: [
