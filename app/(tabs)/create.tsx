@@ -1,6 +1,6 @@
 import { Image } from 'expo-image';
 import * as Location from 'expo-location';
-import { useLocalSearchParams } from 'expo-router';
+import { router, useLocalSearchParams } from 'expo-router';
 import { useEffect, useRef, useState } from 'react';
 import { ActivityIndicator, Alert, Animated, LayoutAnimation, Platform, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, UIManager, View } from 'react-native';
 import { WebView } from 'react-native-webview';
@@ -262,8 +262,13 @@ export default function CreateScreen() {
   return (
     <View style={styles.container}>
       <View style={styles.header}>
-        <Text style={styles.headerTitle}>{t('create.header')}</Text>
-        <Text style={styles.headerSub}>{t('create.headerSub')}</Text>
+        <TouchableOpacity onPress={() => (router.canGoBack() ? router.back() : router.replace('/explore' as any))} style={styles.headerX}>
+          <Text style={styles.headerXTxt}>✕</Text>
+        </TouchableOpacity>
+        <View style={{ flex: 1 }}>
+          <Text style={styles.headerTitle}>{t('create.header')}</Text>
+          <Text style={styles.headerSub}>{t('create.headerSub')}</Text>
+        </View>
       </View>
 
       <ScrollView style={styles.form} showsVerticalScrollIndicator={false} scrollEnabled={formScroll}>
@@ -469,7 +474,9 @@ export default function CreateScreen() {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.bg },
-  header: { padding: 18, paddingTop: 58, borderBottomWidth: 1, borderBottomColor: colors.hairline },
+  header: { flexDirection: 'row', alignItems: 'center', gap: 10, padding: 18, paddingTop: 58, borderBottomWidth: 1, borderBottomColor: colors.hairline },
+  headerX: { width: 36, height: 36, alignItems: 'center', justifyContent: 'center', marginLeft: -6 },
+  headerXTxt: { fontSize: 20, color: colors.textMuted },
   headerTitle: { fontSize: 26, fontFamily: font.heading, color: colors.text },
   headerSub: { fontSize: 13, fontFamily: font.medium, color: colors.textMuted, marginTop: 1 },
   form: { flex: 1, padding: 18 },

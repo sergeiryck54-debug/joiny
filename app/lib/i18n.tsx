@@ -22,8 +22,12 @@ const TR: Record<string, Record<Lang, string>> = {
   'tab.map': { EN: 'Map', RU: 'Карта', TH: 'แผนที่' },
   'tab.create': { EN: 'Create', RU: 'Создать', TH: 'สร้าง' },
   'tab.feed': { EN: 'Feed', RU: 'Лента', TH: 'ฟีด' },
-  'tab.me': { EN: 'Me', RU: 'Я', TH: 'ฉัน' },
+  'tab.me': { EN: 'Profile', RU: 'Профиль', TH: 'โปรไฟล์' },
+  'tab.chats': { EN: 'Chats', RU: 'Чаты', TH: 'แชท' },
   'tab.alerts': { EN: 'Alerts', RU: 'Уведомл.', TH: 'แจ้งเตือน' },
+  'chats.title': { EN: 'Chats', RU: 'Чаты', TH: 'แชท' },
+  'chats.sub': { EN: 'Event chats you’re in', RU: 'Чаты событий, где ты участвуешь', TH: 'แชทกิจกรรมที่คุณอยู่' },
+  'chats.empty': { EN: 'Join an event to start chatting', RU: 'Вступи в событие, чтобы начать общаться', TH: 'เข้าร่วมกิจกรรมเพื่อเริ่มแชท' },
 
   // ---- onboarding ----
   'onb.tagline': { EN: 'Find people for what you’re into — right now, near you.', RU: 'Находи компанию на события рядом — прямо сейчас.', TH: 'หาเพื่อนร่วมกิจกรรมใกล้คุณ — ตอนนี้เลย' },

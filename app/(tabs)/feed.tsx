@@ -156,9 +156,14 @@ export default function FeedScreen() {
           <Text style={styles.headerTitle}>{t('feed.title')}</Text>
           <Text style={styles.headerSub}>{t('feed.sub')}</Text>
         </View>
-        <TouchableOpacity style={styles.writeBtn} onPress={() => setWriting(w => !w)}>
-          <Text style={styles.writeBtnTxt}>{writing ? '✕' : '✍️'}</Text>
-        </TouchableOpacity>
+        <View style={styles.headerActions}>
+          <TouchableOpacity style={styles.bellBtn} onPress={() => router.push('/notifications' as any)}>
+            <Text style={styles.bellTxt}>🔔</Text>
+          </TouchableOpacity>
+          <TouchableOpacity style={styles.writeBtn} onPress={() => setWriting(w => !w)}>
+            <Text style={styles.writeBtnTxt}>{writing ? '✕' : '✍️'}</Text>
+          </TouchableOpacity>
+        </View>
       </View>
 
       {writing && (
@@ -245,6 +250,9 @@ const styles = StyleSheet.create({
   header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 18, paddingTop: 58, paddingBottom: 8 },
   headerTitle: { fontSize: 26, fontFamily: font.heading, color: colors.text },
   headerSub: { fontSize: 13, fontFamily: font.medium, color: colors.textMuted, marginTop: 1 },
+  headerActions: { flexDirection: 'row', alignItems: 'center', gap: 10 },
+  bellBtn: { width: 42, height: 42, borderRadius: 21, backgroundColor: colors.surface, alignItems: 'center', justifyContent: 'center', ...shadow.card },
+  bellTxt: { fontSize: 18 },
   writeBtn: { width: 42, height: 42, borderRadius: 21, backgroundColor: colors.brandBlue, alignItems: 'center', justifyContent: 'center', ...shadow.cta },
   writeBtnTxt: { fontSize: 17, color: '#fff' },
   composer: { marginHorizontal: 16, marginBottom: 10, backgroundColor: colors.surface, borderRadius: radius.card, padding: 14, ...shadow.card },

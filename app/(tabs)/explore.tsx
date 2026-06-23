@@ -304,13 +304,6 @@ export default function MapScreen() {
         <View style={{ height: 100 }} />
       </ScrollView>
 
-      <View style={styles.fab}>
-        <BlurView intensity={45} tint="light" style={styles.fabBlur}>
-          <TouchableOpacity activeOpacity={0.85} onPress={() => setPlacing(p => !p)} style={styles.fabInner}>
-            <Text style={styles.fabTxt}>{placing ? t('map.cancelPick') : t('map.createEvent')}</Text>
-          </TouchableOpacity>
-        </BlurView>
-      </View>
     </View>
   );
 }
