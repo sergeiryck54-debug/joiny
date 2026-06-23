@@ -5,6 +5,7 @@ import { ActivityIndicator, Alert, ScrollView, StyleSheet, Text, TextInput, Touc
 import { WebView } from 'react-native-webview';
 import { reverseGeocode } from '../lib/geocode';
 import { useI18n } from '../lib/i18n';
+import { colors, font, radius, shadow } from '../lib/theme';
 import { addEventMedia, captureMedia, getEventPhotos, isVideoUrl, MediaKind, PickedMedia, pickMedia, removeEventPhoto } from '../lib/photos';
 import { supabase } from '../lib/supabase';
 
@@ -179,7 +180,7 @@ export default function EditEventScreen() {
   const canSave = title.trim().length > 2 && !!category && !!coords;
 
   if (loading) {
-    return <View style={styles.loadingWrap}><ActivityIndicator size="large" color="#2FB6A8" /></View>;
+    return <View style={styles.loadingWrap}><ActivityIndicator size="large" color={colors.brandBlue} /></View>;
   }
 
   const gallery = photos.length ? photos : (coverUrl ? [{ id: null, url: coverUrl }] : []);
@@ -194,7 +195,7 @@ export default function EditEventScreen() {
       <ScrollView style={styles.form} showsVerticalScrollIndicator={false} scrollEnabled={formScroll}>
         <View style={styles.field}>
           <Text style={styles.label}>{t('create.eventName')}</Text>
-          <TextInput style={styles.input} value={title} onChangeText={setTitle} placeholder={t('create.eventNamePh')} placeholderTextColor="#aaa" />
+          <TextInput style={styles.input} value={title} onChangeText={setTitle} placeholder={t('create.eventNamePh')} placeholderTextColor={colors.textFaint} />
         </View>
 
         <View style={styles.field}>
@@ -221,7 +222,7 @@ export default function EditEventScreen() {
               <WebView originWhitelist={['*']} source={{ html: mapHtml }} onMessage={onMapMessage} scrollEnabled={false} nestedScrollEnabled style={{ flex: 1 }} />
             </View>
           ) : null}
-          <TextInput style={[styles.input, { marginTop: 8 }]} value={place} onChangeText={setPlace} placeholder={t('create.addressPh')} placeholderTextColor="#aaa" />
+          <TextInput style={[styles.input, { marginTop: 8 }]} value={place} onChangeText={setPlace} placeholder={t('create.addressPh')} placeholderTextColor={colors.textFaint} />
           {resolving ? <Text style={styles.hint}>{t('create.resolving')}</Text> : <Text style={styles.hint}>{t('create.tapMapHint')}</Text>}
         </View>
 
@@ -261,12 +262,12 @@ export default function EditEventScreen() {
         {mode === 'later' && (
           <View style={styles.field}>
             <Text style={styles.label}>{t('create.dateTime')}</Text>
-            <TextInput style={styles.input} value={startsAt} onChangeText={setStartsAt} placeholder={t('create.dateTimePh')} placeholderTextColor="#aaa" />
+            <TextInput style={styles.input} value={startsAt} onChangeText={setStartsAt} placeholder={t('create.dateTimePh')} placeholderTextColor={colors.textFaint} />
           </View>
         )}
 
         <TouchableOpacity style={[styles.saveBtn, (!canSave || saving) && styles.saveBtnOff]} disabled={!canSave || saving} onPress={save}>
-          {saving ? <ActivityIndicator color="#16263F" /> : <Text style={styles.saveTxt}>{t('common.save')}</Text>}
+          {saving ? <ActivityIndicator color="#fff" /> : <Text style={styles.saveTxt}>{t('common.save')}</Text>}
         </TouchableOpacity>
         <View style={{ height: 60 }} />
       </ScrollView>
@@ -275,42 +276,42 @@ export default function EditEventScreen() {
 }
 
 const styles = StyleSheet.create({
-  loadingWrap: { flex: 1, backgroundColor: '#FAFAF7', alignItems: 'center', justifyContent: 'center' },
-  container: { flex: 1, backgroundColor: '#FAFAF7' },
-  header: { flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: '#16263F', paddingTop: 56, paddingBottom: 14, paddingHorizontal: 12 },
+  loadingWrap: { flex: 1, backgroundColor: colors.bg, alignItems: 'center', justifyContent: 'center' },
+  container: { flex: 1, backgroundColor: colors.bg },
+  header: { flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: colors.brandBlueDeep, paddingTop: 56, paddingBottom: 14, paddingHorizontal: 12 },
   backBtn: { width: 36, height: 36, alignItems: 'center', justifyContent: 'center' },
   backTxt: { color: '#fff', fontSize: 34, lineHeight: 34, marginTop: -4 },
-  headerTitle: { color: '#fff', fontSize: 18, fontWeight: '800' },
+  headerTitle: { color: '#fff', fontSize: 18, fontFamily: font.heading },
   form: { flex: 1, padding: 18 },
   field: { marginBottom: 20 },
-  label: { fontSize: 11, fontWeight: '700', color: '#888', letterSpacing: 0.5, marginBottom: 8 },
-  input: { backgroundColor: '#fff', borderWidth: 1.5, borderColor: '#E5E5DF', borderRadius: 12, padding: 14, fontSize: 15, color: '#16263F' },
-  hint: { fontSize: 12, color: '#888', marginTop: 6 },
-  miniMap: { height: 180, borderRadius: 12, overflow: 'hidden', borderWidth: 1.5, borderColor: '#E5E5DF', backgroundColor: '#e5e5df' },
+  label: { fontSize: 11, fontFamily: font.bold, color: colors.textMuted, letterSpacing: 0.5, marginBottom: 8, textTransform: 'uppercase' },
+  input: { backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.hairline, borderRadius: radius.tile, padding: 14, fontSize: 15, fontFamily: font.medium, color: colors.text, ...shadow.card },
+  hint: { fontSize: 12, fontFamily: font.medium, color: colors.textMuted, marginTop: 6 },
+  miniMap: { height: 180, borderRadius: radius.card, overflow: 'hidden', borderWidth: 1, borderColor: colors.hairline, backgroundColor: colors.soft3 },
   photoGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
-  thumbWrap: { width: 84, height: 84, borderRadius: 10, overflow: 'hidden' },
+  thumbWrap: { width: 84, height: 84, borderRadius: radius.tile, overflow: 'hidden' },
   thumb: { width: 84, height: 84 },
-  thumbVideo: { backgroundColor: '#16263F', alignItems: 'center', justifyContent: 'center' },
-  thumbX: { position: 'absolute', top: 2, right: 2, width: 22, height: 22, borderRadius: 11, backgroundColor: 'rgba(17,17,16,0.75)', alignItems: 'center', justifyContent: 'center' },
-  thumbXTxt: { color: '#fff', fontSize: 12, fontWeight: '700' },
-  thumbAdd: { width: 84, height: 84, borderRadius: 10, borderWidth: 1.5, borderColor: '#E5E5DF', borderStyle: 'dashed', backgroundColor: '#fff', alignItems: 'center', justifyContent: 'center' },
-  thumbAddTxt: { fontSize: 28, color: '#888' },
+  thumbVideo: { backgroundColor: colors.navy2, alignItems: 'center', justifyContent: 'center' },
+  thumbX: { position: 'absolute', top: 2, right: 2, width: 22, height: 22, borderRadius: 11, backgroundColor: 'rgba(22,38,62,0.75)', alignItems: 'center', justifyContent: 'center' },
+  thumbXTxt: { color: '#fff', fontSize: 12, fontFamily: font.bold },
+  thumbAdd: { width: 84, height: 84, borderRadius: radius.tile, borderWidth: 1.5, borderColor: colors.textFaint, borderStyle: 'dashed', backgroundColor: colors.surface, alignItems: 'center', justifyContent: 'center' },
+  thumbAddTxt: { fontSize: 28, color: colors.textMuted },
   catGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
-  catBtn: { paddingHorizontal: 14, paddingVertical: 10, borderRadius: 12, borderWidth: 1.5, borderColor: '#E5E5DF', backgroundColor: '#fff', alignItems: 'center', gap: 4, minWidth: 72 },
-  catBtnOn: { backgroundColor: '#16263F', borderColor: '#16263F' },
+  catBtn: { paddingHorizontal: 14, paddingVertical: 10, borderRadius: radius.tile, borderWidth: 1.5, borderColor: colors.hairline, backgroundColor: colors.surface, alignItems: 'center', gap: 4, minWidth: 72 },
+  catBtnOn: { backgroundColor: colors.brandBlue, borderColor: colors.brandBlue },
   catEmoji: { fontSize: 22 },
-  catLabel: { fontSize: 11, fontWeight: '600', color: '#888' },
-  catLabelOn: { color: '#2FB6A8' },
+  catLabel: { fontSize: 11, fontFamily: font.semibold, color: colors.textMuted },
+  catLabelOn: { color: '#fff' },
   counterWrap: { flexDirection: 'row', alignItems: 'center', gap: 16 },
-  counterBtn: { width: 44, height: 44, borderRadius: 12, backgroundColor: '#fff', borderWidth: 1.5, borderColor: '#E5E5DF', alignItems: 'center', justifyContent: 'center' },
-  counterBtnTxt: { fontSize: 22, fontWeight: '700', color: '#16263F' },
-  counterVal: { fontSize: 24, fontWeight: '800', color: '#16263F', minWidth: 40, textAlign: 'center' },
-  modeWrap: { flexDirection: 'row', backgroundColor: '#F2F2EE', borderRadius: 12, padding: 3, marginBottom: 20, borderWidth: 1, borderColor: '#E5E5DF' },
-  modeBtn: { flex: 1, padding: 10, borderRadius: 9, alignItems: 'center' },
-  modeBtnOn: { backgroundColor: '#16263F' },
-  modeTxt: { fontSize: 13, fontWeight: '600', color: '#888' },
-  modeTxtOn: { color: '#2FB6A8' },
-  saveBtn: { backgroundColor: '#2FB6A8', padding: 16, borderRadius: 14, alignItems: 'center', marginTop: 4 },
+  counterBtn: { width: 44, height: 44, borderRadius: radius.tile, backgroundColor: colors.surface, borderWidth: 1.5, borderColor: colors.hairline, alignItems: 'center', justifyContent: 'center' },
+  counterBtnTxt: { fontSize: 22, fontFamily: font.bold, color: colors.text },
+  counterVal: { fontSize: 24, fontFamily: font.heading, color: colors.text, minWidth: 40, textAlign: 'center' },
+  modeWrap: { flexDirection: 'row', backgroundColor: colors.soft2, borderRadius: radius.tile, padding: 3, marginBottom: 20 },
+  modeBtn: { flex: 1, padding: 10, borderRadius: 10, alignItems: 'center' },
+  modeBtnOn: { backgroundColor: colors.brandBlue },
+  modeTxt: { fontSize: 13, fontFamily: font.semibold, color: colors.textMuted },
+  modeTxtOn: { color: '#fff' },
+  saveBtn: { backgroundColor: colors.brandBlue, padding: 16, borderRadius: radius.cta, alignItems: 'center', marginTop: 4, ...shadow.cta },
   saveBtnOff: { opacity: 0.4 },
-  saveTxt: { fontSize: 16, fontWeight: '700', color: '#16263F' },
+  saveTxt: { fontSize: 16, fontFamily: font.extrabold, color: '#fff' },
 });

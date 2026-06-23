@@ -7,6 +7,7 @@ import { ActivityIndicator, Alert, ScrollView, StyleSheet, Text, TouchableOpacit
 import { WebView } from 'react-native-webview';
 import { useI18n } from '../lib/i18n';
 import { supabase } from '../lib/supabase';
+import { colors, font, radius, shadow } from '../lib/theme';
 
 const FILTERS = ['All', '⚽', '🎸', '🧘', '🎲', '🐕'];
 
@@ -197,7 +198,7 @@ export default function MapScreen() {
   if (loading) {
     return (
       <View style={styles.loading}>
-        <ActivityIndicator size="large" color="#2FB6A8" />
+        <ActivityIndicator size="large" color={colors.brandTeal} />
         <Text style={styles.loadingTxt}>{t('map.finding')}</Text>
       </View>
     );
@@ -311,45 +312,45 @@ export default function MapScreen() {
 }
 
 const styles = StyleSheet.create({
-  loading: { flex: 1, backgroundColor: '#16263F', alignItems: 'center', justifyContent: 'center', gap: 16 },
-  loadingTxt: { color: '#2FB6A8', fontSize: 16, fontWeight: '600' },
-  container: { flex: 1, backgroundColor: '#FAFAF7' },
-  mapWrap: { height: 240, marginHorizontal: 12, marginTop: 52, borderRadius: 16, overflow: 'hidden', backgroundColor: '#e5e5df' },
-  mapHint: { position: 'absolute', bottom: 10, alignSelf: 'center', backgroundColor: 'rgba(17,17,16,0.82)', paddingHorizontal: 12, paddingVertical: 6, borderRadius: 16 },
-  mapHintTxt: { color: '#fff', fontSize: 12, fontWeight: '600', textAlign: 'center' },
-  statsBar: { flexDirection: 'row', marginHorizontal: 12, marginTop: 10, backgroundColor: '#fff', borderRadius: 12, borderWidth: 1, borderColor: '#E5E5DF', overflow: 'hidden' },
-  stat: { flex: 1, padding: 10, alignItems: 'center', borderRightWidth: 1, borderRightColor: '#E5E5DF' },
-  statNum: { fontSize: 18, fontWeight: '800', color: '#16263F' },
-  statLbl: { fontSize: 10, color: '#888', fontWeight: '600', textTransform: 'uppercase' },
-  filters: { marginTop: 10, maxHeight: 44 },
-  filtersContent: { paddingHorizontal: 12, gap: 7 },
-  ftag: { paddingHorizontal: 14, paddingVertical: 7, borderRadius: 20, borderWidth: 1.5, borderColor: '#E5E5DF', backgroundColor: '#fff' },
-  ftagActive: { backgroundColor: '#16263F', borderColor: '#16263F' },
-  ftagTxt: { fontSize: 12, fontWeight: '600', color: '#888' },
-  ftagTxtActive: { color: '#2FB6A8' },
-  list: { flex: 1, marginTop: 10, paddingHorizontal: 12 },
-  card: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#fff', borderRadius: 14, padding: 12, marginBottom: 10, borderWidth: 1, borderColor: '#E5E5DF' },
+  loading: { flex: 1, backgroundColor: colors.navy2, alignItems: 'center', justifyContent: 'center', gap: 16 },
+  loadingTxt: { color: colors.brandTeal, fontSize: 16, fontFamily: font.semibold },
+  container: { flex: 1, backgroundColor: colors.bg },
+  mapWrap: { height: 240, marginHorizontal: 14, marginTop: 52, borderRadius: radius.card, overflow: 'hidden', backgroundColor: colors.soft3 },
+  mapHint: { position: 'absolute', bottom: 10, alignSelf: 'center', backgroundColor: 'rgba(22,38,62,0.85)', paddingHorizontal: 12, paddingVertical: 6, borderRadius: radius.chip },
+  mapHintTxt: { color: '#fff', fontSize: 12, fontFamily: font.semibold, textAlign: 'center' },
+  statsBar: { flexDirection: 'row', marginHorizontal: 14, marginTop: 12, backgroundColor: colors.surface, borderRadius: radius.card, overflow: 'hidden', ...shadow.card },
+  stat: { flex: 1, padding: 12, alignItems: 'center', borderRightWidth: 1, borderRightColor: colors.hairline },
+  statNum: { fontSize: 19, fontFamily: font.heading, color: colors.brandBlue },
+  statLbl: { fontSize: 10, color: colors.textMuted, fontFamily: font.bold, textTransform: 'uppercase', marginTop: 1 },
+  filters: { marginTop: 12, maxHeight: 44 },
+  filtersContent: { paddingHorizontal: 14, gap: 8 },
+  ftag: { paddingHorizontal: 15, paddingVertical: 8, borderRadius: radius.chip, borderWidth: 1.5, borderColor: colors.hairline, backgroundColor: colors.surface },
+  ftagActive: { backgroundColor: colors.brandBlue, borderColor: colors.brandBlue },
+  ftagTxt: { fontSize: 12, fontFamily: font.bold, color: colors.textMuted },
+  ftagTxtActive: { color: '#fff' },
+  list: { flex: 1, marginTop: 10, paddingHorizontal: 14 },
+  card: { flexDirection: 'row', alignItems: 'center', backgroundColor: colors.surface, borderRadius: radius.card, padding: 12, marginBottom: 10, ...shadow.card },
   cardMain: { flex: 1, flexDirection: 'row', alignItems: 'center' },
-  cardLeft: { width: 44, height: 44, borderRadius: 12, backgroundColor: '#F2F2EE', alignItems: 'center', justifyContent: 'center', marginRight: 12, overflow: 'hidden' },
-  cardPhoto: { width: 44, height: 44 },
+  cardLeft: { width: 46, height: 46, borderRadius: radius.tile, backgroundColor: colors.soft, alignItems: 'center', justifyContent: 'center', marginRight: 12, overflow: 'hidden' },
+  cardPhoto: { width: 46, height: 46 },
   cardEmoji: { fontSize: 22 },
   cardInfo: { flex: 1 },
-  cardTitle: { fontSize: 14, fontWeight: '700', color: '#16263F', marginBottom: 3 },
-  cardLoc: { fontSize: 12, color: '#888', marginBottom: 3 },
-  cardMeta: { fontSize: 12, color: '#888' },
+  cardTitle: { fontSize: 14, fontFamily: font.headingBold, color: colors.text, marginBottom: 3 },
+  cardLoc: { fontSize: 12, fontFamily: font.medium, color: colors.textMuted, marginBottom: 3 },
+  cardMeta: { fontSize: 12, fontFamily: font.medium, color: colors.textMuted },
   cardActions: { alignItems: 'flex-end', gap: 6 },
-  likeBtn: { paddingHorizontal: 10, paddingVertical: 5, borderRadius: 10, borderWidth: 1.5, borderColor: '#E5E5DF', minWidth: 64, alignItems: 'center' },
-  likeBtnTxt: { fontSize: 12, fontWeight: '700', color: '#16263F' },
-  joinBtn: { backgroundColor: '#16263F', paddingHorizontal: 16, paddingVertical: 8, borderRadius: 10, minWidth: 64, alignItems: 'center' },
-  joinBtnDone: { backgroundColor: '#2FB6A8' },
-  joinTxt: { fontSize: 13, fontWeight: '700', color: '#2FB6A8' },
-  joinTxtDone: { color: '#16263F' },
-  chatBtn: { paddingHorizontal: 12, paddingVertical: 6, borderRadius: 10, borderWidth: 1.5, borderColor: '#E5E5DF', minWidth: 64, alignItems: 'center' },
-  chatBtnTxt: { fontSize: 12, fontWeight: '700', color: '#16263F' },
-  delBtn: { paddingHorizontal: 12, paddingVertical: 6, borderRadius: 10, borderWidth: 1.5, borderColor: '#F3C5C5', backgroundColor: '#FDECEC', minWidth: 64, alignItems: 'center' },
-  delBtnTxt: { fontSize: 12, fontWeight: '700', color: '#C0392B' },
-  fab: { position: 'absolute', bottom: 24, alignSelf: 'center', borderRadius: 50, overflow: 'hidden', borderWidth: 1, borderColor: 'rgba(255,255,255,0.55)', shadowColor: '#16263F', shadowOpacity: 0.28, shadowRadius: 14, shadowOffset: { width: 0, height: 6 }, elevation: 10 },
+  likeBtn: { paddingHorizontal: 10, paddingVertical: 6, borderRadius: radius.tile, borderWidth: 1.5, borderColor: colors.hairline, minWidth: 64, alignItems: 'center' },
+  likeBtnTxt: { fontSize: 12, fontFamily: font.bold, color: colors.text },
+  joinBtn: { backgroundColor: colors.brandBlue, paddingHorizontal: 16, paddingVertical: 9, borderRadius: radius.tile, minWidth: 64, alignItems: 'center' },
+  joinBtnDone: { backgroundColor: colors.brandTeal },
+  joinTxt: { fontSize: 13, fontFamily: font.bold, color: '#fff' },
+  joinTxtDone: { color: '#0E2A33' },
+  chatBtn: { paddingHorizontal: 12, paddingVertical: 6, borderRadius: radius.tile, borderWidth: 1.5, borderColor: colors.hairline, minWidth: 64, alignItems: 'center' },
+  chatBtnTxt: { fontSize: 12, fontFamily: font.bold, color: colors.text },
+  delBtn: { paddingHorizontal: 12, paddingVertical: 6, borderRadius: radius.tile, borderWidth: 1.5, borderColor: '#F3C5C5', backgroundColor: '#FDECEC', minWidth: 64, alignItems: 'center' },
+  delBtnTxt: { fontSize: 12, fontFamily: font.bold, color: '#C0392B' },
+  fab: { position: 'absolute', bottom: 24, alignSelf: 'center', borderRadius: 50, overflow: 'hidden', borderWidth: 1, borderColor: 'rgba(255,255,255,0.6)', ...shadow.float },
   fabBlur: { },
-  fabInner: { paddingHorizontal: 26, paddingVertical: 14, backgroundColor: 'rgba(47,182,168,0.30)', alignItems: 'center', justifyContent: 'center' },
-  fabTxt: { color: '#0E2A33', fontSize: 15, fontWeight: '800', letterSpacing: 0.3 },
+  fabInner: { paddingHorizontal: 26, paddingVertical: 14, backgroundColor: 'rgba(70,208,194,0.30)', alignItems: 'center', justifyContent: 'center' },
+  fabTxt: { color: '#0E2A33', fontSize: 15, fontFamily: font.extrabold, letterSpacing: 0.3 },
 });

@@ -1,4 +1,5 @@
 import { Image } from 'expo-image';
+import { LinearGradient } from 'expo-linear-gradient';
 import { router, useFocusEffect, useLocalSearchParams } from 'expo-router';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { ActivityIndicator, Alert, Dimensions, Share, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
@@ -6,6 +7,7 @@ import { WebView } from 'react-native-webview';
 import { useI18n } from '../lib/i18n';
 import { addEventMedia, captureMedia, getEventPhotos, isVideoUrl, MediaKind, PickedMedia, pickMedia, removeEventPhoto } from '../lib/photos';
 import { supabase } from '../lib/supabase';
+import { colors, font, gradients, radius, shadow } from '../lib/theme';
 import { useUnread } from '../lib/unread';
 
 const SCREEN_W = Dimensions.get('window').width;
@@ -247,7 +249,7 @@ export default function EventDetailScreen() {
   if (loading) {
     return (
       <View style={styles.loadingWrap}>
-        <ActivityIndicator size="large" color="#2FB6A8" />
+        <ActivityIndicator size="large" color={colors.brandBlue} />
       </View>
     );
   }
@@ -297,7 +299,7 @@ export default function EventDetailScreen() {
             <Text style={styles.addPhotoTxt}>{photoBusy ? t('common.uploading') : t('ev.addPhoto')}</Text>
           </TouchableOpacity>
         ) : (
-          <View style={styles.noPhoto}><Text style={styles.noPhotoEmoji}>{ev.emoji || '📍'}</Text></View>
+          <LinearGradient colors={gradients.hero} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.noPhoto}><Text style={styles.noPhotoEmoji}>{ev.emoji || '📍'}</Text></LinearGradient>
         )}
 
         <View style={styles.body}>
@@ -387,61 +389,61 @@ export default function EventDetailScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#FAFAF7' },
-  loadingWrap: { flex: 1, backgroundColor: '#FAFAF7', alignItems: 'center', justifyContent: 'center', gap: 12 },
-  muted: { color: '#888', fontSize: 15 },
+  container: { flex: 1, backgroundColor: colors.bg },
+  loadingWrap: { flex: 1, backgroundColor: colors.bg, alignItems: 'center', justifyContent: 'center', gap: 12 },
+  muted: { color: colors.textMuted, fontFamily: font.medium, fontSize: 15 },
   backLink: { padding: 10 },
-  backLinkTxt: { color: '#1E8C80', fontWeight: '700' },
-  backFab: { position: 'absolute', top: 48, left: 14, zIndex: 10, width: 40, height: 40, borderRadius: 20, backgroundColor: 'rgba(17,17,16,0.7)', alignItems: 'center', justifyContent: 'center' },
+  backLinkTxt: { color: colors.brandBlue, fontFamily: font.bold },
+  backFab: { position: 'absolute', top: 48, left: 14, zIndex: 10, width: 40, height: 40, borderRadius: 20, backgroundColor: 'rgba(16,36,60,0.55)', alignItems: 'center', justifyContent: 'center' },
   backFabTxt: { color: '#fff', fontSize: 30, lineHeight: 30, marginTop: -3 },
-  photoWrap: { width: '100%', height: 240, backgroundColor: '#eee' },
+  photoWrap: { width: '100%', height: 240, backgroundColor: colors.soft3 },
   slide: { width: SCREEN_W, height: 240 },
   photo: { width: SCREEN_W, height: 240 },
-  countBadge: { position: 'absolute', bottom: 10, alignSelf: 'center', backgroundColor: 'rgba(17,17,16,0.7)', paddingHorizontal: 10, paddingVertical: 4, borderRadius: 12 },
-  countTxt: { color: '#fff', fontSize: 12, fontWeight: '700', textAlign: 'center' },
-  addMore: { position: 'absolute', bottom: 10, right: 12, width: 38, height: 38, borderRadius: 19, backgroundColor: '#2FB6A8', alignItems: 'center', justifyContent: 'center' },
-  addMoreTxt: { fontSize: 24, fontWeight: '700', color: '#16263F' },
+  countBadge: { position: 'absolute', bottom: 10, alignSelf: 'center', backgroundColor: 'rgba(16,36,60,0.7)', paddingHorizontal: 10, paddingVertical: 4, borderRadius: 12 },
+  countTxt: { color: '#fff', fontSize: 12, fontFamily: font.bold, textAlign: 'center' },
+  addMore: { position: 'absolute', bottom: 10, right: 12, width: 38, height: 38, borderRadius: 19, backgroundColor: colors.brandTeal, alignItems: 'center', justifyContent: 'center' },
+  addMoreTxt: { fontSize: 24, fontFamily: font.bold, color: '#0E2A33' },
   photoActions: { position: 'absolute', top: 48, right: 12, flexDirection: 'row', gap: 6 },
-  photoBtn: { width: 36, height: 36, borderRadius: 18, backgroundColor: 'rgba(17,17,16,0.7)', alignItems: 'center', justifyContent: 'center' },
+  photoBtn: { width: 36, height: 36, borderRadius: 18, backgroundColor: 'rgba(16,36,60,0.55)', alignItems: 'center', justifyContent: 'center' },
   photoBtnTxt: { color: '#fff', fontSize: 16 },
   photoOverlay: { ...StyleSheet.absoluteFillObject, alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(0,0,0,0.3)' },
-  addPhoto: { margin: 16, marginTop: 56, height: 120, borderRadius: 14, borderWidth: 1.5, borderColor: '#E5E5DF', borderStyle: 'dashed', alignItems: 'center', justifyContent: 'center', backgroundColor: '#fff' },
-  addPhotoTxt: { fontSize: 14, fontWeight: '600', color: '#888' },
-  noPhoto: { width: '100%', height: 160, backgroundColor: '#16263F', alignItems: 'center', justifyContent: 'center' },
+  addPhoto: { margin: 16, marginTop: 56, height: 120, borderRadius: radius.card, borderWidth: 1.5, borderColor: colors.textFaint, borderStyle: 'dashed', alignItems: 'center', justifyContent: 'center', backgroundColor: colors.surface },
+  addPhotoTxt: { fontSize: 14, fontFamily: font.semibold, color: colors.textMuted },
+  noPhoto: { width: '100%', height: 180, alignItems: 'center', justifyContent: 'center' },
   noPhotoEmoji: { fontSize: 64 },
   body: { padding: 18 },
-  title: { fontSize: 26, fontWeight: '800', color: '#16263F', marginBottom: 14 },
-  creatorRow: { flexDirection: 'row', alignItems: 'center', gap: 12, backgroundColor: '#fff', borderRadius: 14, borderWidth: 1, borderColor: '#E5E5DF', padding: 12, marginBottom: 14 },
-  creatorAvatar: { width: 44, height: 44, borderRadius: 22, backgroundColor: '#2FB6A8', alignItems: 'center', justifyContent: 'center', overflow: 'hidden' },
+  title: { fontSize: 26, fontFamily: font.heading, color: colors.text, marginBottom: 14 },
+  creatorRow: { flexDirection: 'row', alignItems: 'center', gap: 12, backgroundColor: colors.surface, borderRadius: radius.card, padding: 12, marginBottom: 14, ...shadow.card },
+  creatorAvatar: { width: 44, height: 44, borderRadius: 22, backgroundColor: colors.brandTeal, alignItems: 'center', justifyContent: 'center', overflow: 'hidden' },
   creatorAvatarImg: { width: 44, height: 44 },
-  creatorLabel: { fontSize: 11, color: '#888', fontWeight: '600', textTransform: 'uppercase' },
-  creatorName: { fontSize: 16, fontWeight: '700', color: '#16263F', marginTop: 1 },
-  likeRow: { flexDirection: 'row', alignItems: 'center', gap: 8, alignSelf: 'flex-start', backgroundColor: '#fff', borderWidth: 1, borderColor: '#E5E5DF', borderRadius: 22, paddingHorizontal: 14, paddingVertical: 8, marginBottom: 14 },
+  creatorLabel: { fontSize: 11, color: colors.textMuted, fontFamily: font.bold, textTransform: 'uppercase' },
+  creatorName: { fontSize: 16, fontFamily: font.headingBold, color: colors.text, marginTop: 1 },
+  likeRow: { flexDirection: 'row', alignItems: 'center', gap: 8, alignSelf: 'flex-start', backgroundColor: colors.surface, borderRadius: radius.pill, paddingHorizontal: 15, paddingVertical: 9, marginBottom: 14, ...shadow.card },
   likeHeart: { fontSize: 18 },
-  likeCount: { fontSize: 15, fontWeight: '800', color: '#16263F' },
-  likeLabel: { fontSize: 13, color: '#888', fontWeight: '600' },
+  likeCount: { fontSize: 15, fontFamily: font.extrabold, color: colors.text },
+  likeLabel: { fontSize: 13, color: colors.textMuted, fontFamily: font.semibold },
   infoRow: { flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 10 },
   infoIcon: { fontSize: 16, width: 22, textAlign: 'center' },
-  infoTxt: { fontSize: 15, color: '#333', flex: 1 },
-  infoChevron: { fontSize: 12, color: '#888' },
+  infoTxt: { fontSize: 15, fontFamily: font.medium, color: colors.textSub, flex: 1 },
+  infoChevron: { fontSize: 12, color: colors.textMuted },
   partList: { marginBottom: 12, gap: 6 },
-  partItem: { flexDirection: 'row', alignItems: 'center', gap: 10, backgroundColor: '#fff', borderWidth: 1, borderColor: '#E5E5DF', borderRadius: 12, padding: 8 },
-  partAvatar: { width: 34, height: 34, borderRadius: 17, backgroundColor: '#2FB6A8', alignItems: 'center', justifyContent: 'center', overflow: 'hidden' },
+  partItem: { flexDirection: 'row', alignItems: 'center', gap: 10, backgroundColor: colors.surface, borderRadius: radius.tile, padding: 8, ...shadow.card },
+  partAvatar: { width: 34, height: 34, borderRadius: 17, backgroundColor: colors.brandTeal, alignItems: 'center', justifyContent: 'center', overflow: 'hidden' },
   partAvatarImg: { width: 34, height: 34 },
-  partName: { flex: 1, fontSize: 14, fontWeight: '600', color: '#16263F' },
-  partEmpty: { fontSize: 13, color: '#888' },
-  chevron: { fontSize: 20, color: '#ccc' },
-  miniMap: { height: 160, borderRadius: 14, overflow: 'hidden', marginTop: 8, marginBottom: 18, borderWidth: 1, borderColor: '#E5E5DF', backgroundColor: '#e5e5df' },
-  joinBtn: { backgroundColor: '#2FB6A8', padding: 16, borderRadius: 14, alignItems: 'center', marginBottom: 10 },
-  joinBtnDone: { backgroundColor: '#16263F' },
-  joinTxt: { fontSize: 16, fontWeight: '800', color: '#16263F' },
-  joinTxtDone: { color: '#2FB6A8' },
-  chatBtn: { padding: 14, borderRadius: 14, alignItems: 'center', justifyContent: 'center', borderWidth: 1.5, borderColor: '#E5E5DF', backgroundColor: '#fff', marginBottom: 10 },
-  chatTxt: { fontSize: 15, fontWeight: '700', color: '#16263F' },
-  chatBadge: { position: 'absolute', right: 14, top: '50%', marginTop: -12, minWidth: 24, height: 24, borderRadius: 12, backgroundColor: '#2FB6A8', alignItems: 'center', justifyContent: 'center', paddingHorizontal: 7 },
-  chatBadgeTxt: { color: '#16263F', fontSize: 12, fontWeight: '800' },
-  editBtn: { padding: 14, borderRadius: 14, alignItems: 'center', backgroundColor: '#16263F', marginBottom: 10 },
-  editTxt: { fontSize: 15, fontWeight: '700', color: '#2FB6A8' },
-  delBtn: { padding: 14, borderRadius: 14, alignItems: 'center', backgroundColor: '#FDECEC', marginTop: 4 },
-  delTxt: { fontSize: 14, fontWeight: '700', color: '#C0392B' },
+  partName: { flex: 1, fontSize: 14, fontFamily: font.semibold, color: colors.text },
+  partEmpty: { fontSize: 13, color: colors.textMuted },
+  chevron: { fontSize: 20, color: colors.textFaint },
+  miniMap: { height: 160, borderRadius: radius.card, overflow: 'hidden', marginTop: 8, marginBottom: 18, borderWidth: 1, borderColor: colors.hairline, backgroundColor: colors.soft3 },
+  joinBtn: { backgroundColor: colors.brandBlue, padding: 16, borderRadius: radius.cta, alignItems: 'center', marginBottom: 10, ...shadow.cta },
+  joinBtnDone: { backgroundColor: colors.brandBlueDeep, shadowOpacity: 0 },
+  joinTxt: { fontSize: 16, fontFamily: font.extrabold, color: '#fff' },
+  joinTxtDone: { color: '#fff' },
+  chatBtn: { padding: 14, borderRadius: radius.cta, alignItems: 'center', justifyContent: 'center', borderWidth: 1.5, borderColor: colors.hairline, backgroundColor: colors.surface, marginBottom: 10 },
+  chatTxt: { fontSize: 15, fontFamily: font.bold, color: colors.text },
+  chatBadge: { position: 'absolute', right: 14, top: '50%', marginTop: -12, minWidth: 24, height: 24, borderRadius: 12, backgroundColor: colors.brandTeal, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 7 },
+  chatBadgeTxt: { color: '#0E2A33', fontSize: 12, fontFamily: font.extrabold },
+  editBtn: { padding: 14, borderRadius: radius.cta, alignItems: 'center', backgroundColor: colors.text, marginBottom: 10 },
+  editTxt: { fontSize: 15, fontFamily: font.bold, color: colors.brandTeal },
+  delBtn: { padding: 14, borderRadius: radius.cta, alignItems: 'center', backgroundColor: '#FDECEC', marginTop: 4 },
+  delTxt: { fontSize: 14, fontFamily: font.bold, color: '#C0392B' },
 });

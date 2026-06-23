@@ -3,6 +3,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { ActivityIndicator, Alert, RefreshControl, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { useI18n } from '../lib/i18n';
 import { supabase } from '../lib/supabase';
+import { colors, font, radius, shadow } from '../lib/theme';
 import { useUnread } from '../lib/unread';
 
 const TABS = ['All', 'Events', 'Posts'];
@@ -95,7 +96,7 @@ export default function NotificationsScreen() {
   if (loading) {
     return (
       <View style={styles.loadingWrap}>
-        <ActivityIndicator size="large" color="#2FB6A8" />
+        <ActivityIndicator size="large" color={colors.brandBlue} />
       </View>
     );
   }
@@ -171,32 +172,32 @@ export default function NotificationsScreen() {
 }
 
 const styles = StyleSheet.create({
-  loadingWrap: { flex: 1, backgroundColor: '#FAFAF7', alignItems: 'center', justifyContent: 'center' },
-  container: { flex: 1, backgroundColor: '#FAFAF7' },
-  header: { padding: 18, paddingTop: 56 },
-  title: { fontSize: 26, fontWeight: '800', color: '#16263F' },
-  tabs: { flexDirection: 'row', borderBottomWidth: 2, borderBottomColor: '#E5E5DF', paddingHorizontal: 18 },
-  tab: { paddingVertical: 11, paddingHorizontal: 14, borderBottomWidth: 2.5, borderBottomColor: 'transparent', marginBottom: -2 },
-  tabOn: { borderBottomColor: '#2FB6A8' },
-  tabTxt: { fontSize: 12, fontWeight: '700', color: '#888', textTransform: 'uppercase' },
-  tabTxtOn: { color: '#16263F' },
-  unreadSection: { paddingTop: 6, paddingBottom: 8, borderBottomWidth: 8, borderBottomColor: '#F2F2EE' },
-  unreadHeader: { fontSize: 12, fontWeight: '800', color: '#1E8C80', textTransform: 'uppercase', paddingHorizontal: 16, paddingTop: 12, paddingBottom: 4 },
-  unreadItem: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingHorizontal: 16, paddingVertical: 12 },
-  unreadEmojiWrap: { width: 44, height: 44, borderRadius: 22, backgroundColor: '#D9F4EF', alignItems: 'center', justifyContent: 'center' },
-  unreadCountDot: { position: 'absolute', top: -4, right: -4, minWidth: 20, height: 20, borderRadius: 10, backgroundColor: '#2FB6A8', borderWidth: 2, borderColor: '#FAFAF7', alignItems: 'center', justifyContent: 'center', paddingHorizontal: 4 },
-  unreadCountTxt: { color: '#16263F', fontSize: 10, fontWeight: '800' },
-  unreadMeta: { fontSize: 12, color: '#1E8C80', fontWeight: '700', marginTop: 2 },
-  item: { flexDirection: 'row', alignItems: 'flex-start', gap: 12, padding: 16, borderBottomWidth: 1, borderBottomColor: '#E5E5DF' },
+  loadingWrap: { flex: 1, backgroundColor: colors.bg, alignItems: 'center', justifyContent: 'center' },
+  container: { flex: 1, backgroundColor: colors.bg },
+  header: { paddingHorizontal: 18, paddingTop: 58, paddingBottom: 6 },
+  title: { fontSize: 26, fontFamily: font.heading, color: colors.text },
+  tabs: { flexDirection: 'row', borderBottomWidth: 1, borderBottomColor: colors.hairline, paddingHorizontal: 18 },
+  tab: { paddingVertical: 11, paddingHorizontal: 14, borderBottomWidth: 2.5, borderBottomColor: 'transparent', marginBottom: -1 },
+  tabOn: { borderBottomColor: colors.brandBlue },
+  tabTxt: { fontSize: 12, fontFamily: font.bold, color: colors.textMuted, textTransform: 'uppercase' },
+  tabTxtOn: { color: colors.text },
+  unreadSection: { paddingTop: 6, paddingBottom: 8, marginBottom: 4, borderBottomWidth: 1, borderBottomColor: colors.hairline },
+  unreadHeader: { fontSize: 12, fontFamily: font.extrabold, color: colors.chipText, textTransform: 'uppercase', paddingHorizontal: 18, paddingTop: 14, paddingBottom: 4 },
+  unreadItem: { flexDirection: 'row', alignItems: 'center', gap: 12, marginHorizontal: 14, marginBottom: 8, padding: 12, backgroundColor: colors.surface, borderRadius: radius.card, ...shadow.card },
+  unreadEmojiWrap: { width: 44, height: 44, borderRadius: 22, backgroundColor: colors.chipBg, alignItems: 'center', justifyContent: 'center' },
+  unreadCountDot: { position: 'absolute', top: -4, right: -4, minWidth: 20, height: 20, borderRadius: 10, backgroundColor: colors.brandTeal, borderWidth: 2, borderColor: colors.surface, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 4 },
+  unreadCountTxt: { color: '#0E2A33', fontSize: 10, fontFamily: font.extrabold },
+  unreadMeta: { fontSize: 12, color: colors.chipText, fontFamily: font.bold, marginTop: 2 },
+  item: { flexDirection: 'row', alignItems: 'flex-start', gap: 12, marginHorizontal: 14, marginBottom: 10, padding: 14, backgroundColor: colors.surface, borderRadius: radius.card, ...shadow.card },
   avatar: { width: 44, height: 44, borderRadius: 22, alignItems: 'center', justifyContent: 'center' },
   avatarEmoji: { fontSize: 22 },
-  notifText: { fontSize: 14, color: '#333', lineHeight: 20, marginBottom: 6 },
+  notifText: { fontSize: 14, fontFamily: font.medium, color: colors.textSub, lineHeight: 20, marginBottom: 6 },
   viewBtn: { alignSelf: 'flex-start', marginBottom: 6 },
-  viewBtnTxt: { fontSize: 13, fontWeight: '700', color: '#1E8C80' },
-  delLinkTxt: { fontSize: 13, fontWeight: '700', color: '#C0392B' },
-  time: { fontSize: 11, color: '#aaa' },
+  viewBtnTxt: { fontSize: 13, fontFamily: font.bold, color: colors.brandBlue },
+  delLinkTxt: { fontSize: 13, fontFamily: font.bold, color: '#C0392B' },
+  time: { fontSize: 11, fontFamily: font.medium, color: colors.textFaint },
   empty: { alignItems: 'center', paddingTop: 60, gap: 10 },
   emptyIcon: { fontSize: 52 },
-  emptyTitle: { fontSize: 20, fontWeight: '800', color: '#16263F' },
-  emptySub: { fontSize: 14, color: '#888' },
+  emptyTitle: { fontSize: 20, fontFamily: font.heading, color: colors.text },
+  emptySub: { fontSize: 14, fontFamily: font.medium, color: colors.textMuted },
 });

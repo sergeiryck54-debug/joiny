@@ -1,9 +1,11 @@
 import { Image } from 'expo-image';
+import { LinearGradient } from 'expo-linear-gradient';
 import { router, useLocalSearchParams } from 'expo-router';
 import { useEffect, useState } from 'react';
 import { ActivityIndicator, Alert, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { useI18n } from '../lib/i18n';
 import { supabase } from '../lib/supabase';
+import { colors, font, gradients, radius, shadow } from '../lib/theme';
 
 type Relation = 'none' | 'outgoing' | 'incoming' | 'friends';
 
@@ -83,7 +85,7 @@ export default function UserProfileScreen() {
   };
 
   if (loading) {
-    return <View style={styles.loadingWrap}><ActivityIndicator size="large" color="#2FB6A8" /></View>;
+    return <View style={styles.loadingWrap}><ActivityIndicator size="large" color={colors.brandBlue} /></View>;
   }
 
   const interests: string[] = prof?.interests || [];
@@ -96,7 +98,7 @@ export default function UserProfileScreen() {
 
   return (
     <ScrollView style={styles.container} showsVerticalScrollIndicator={false}>
-      <View style={styles.hero}>
+      <LinearGradient colors={gradients.hero} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.hero}>
         <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
           <Text style={styles.backTxt}>‹</Text>
         </TouchableOpacity>
@@ -111,7 +113,7 @@ export default function UserProfileScreen() {
             <Text style={[styles.friendTxt, !btn.action && styles.friendTxtOff]}>{btn.txt}</Text>
           </TouchableOpacity>
         )}
-      </View>
+      </LinearGradient>
 
       <View style={styles.stats}>
         <View style={styles.stat}><Text style={styles.statN}>{events.length}</Text><Text style={styles.statL}>Events</Text></View>
@@ -149,35 +151,35 @@ export default function UserProfileScreen() {
 }
 
 const styles = StyleSheet.create({
-  loadingWrap: { flex: 1, backgroundColor: '#FAFAF7', alignItems: 'center', justifyContent: 'center' },
-  container: { flex: 1, backgroundColor: '#FAFAF7' },
-  hero: { backgroundColor: '#16263F', padding: 28, paddingTop: 56, alignItems: 'center' },
+  loadingWrap: { flex: 1, backgroundColor: colors.bg, alignItems: 'center', justifyContent: 'center' },
+  container: { flex: 1, backgroundColor: colors.bg },
+  hero: { padding: 28, paddingTop: 56, alignItems: 'center' },
   backBtn: { position: 'absolute', top: 48, left: 14, width: 40, height: 40, alignItems: 'center', justifyContent: 'center' },
   backTxt: { color: '#fff', fontSize: 32, lineHeight: 32, marginTop: -3 },
-  avatar: { width: 88, height: 88, borderRadius: 44, backgroundColor: '#2FB6A8', alignItems: 'center', justifyContent: 'center', marginBottom: 14, overflow: 'hidden' },
+  avatar: { width: 88, height: 88, borderRadius: 44, backgroundColor: 'rgba(255,255,255,0.18)', alignItems: 'center', justifyContent: 'center', marginBottom: 14, overflow: 'hidden' },
   avatarImg: { width: 88, height: 88 },
   avatarEmoji: { fontSize: 40 },
-  name: { fontSize: 22, fontWeight: '800', color: '#fff', marginBottom: 4 },
-  bio: { fontSize: 13, color: 'rgba(255,255,255,0.55)', marginBottom: 4, textAlign: 'center' },
-  location: { fontSize: 12, color: 'rgba(255,255,255,0.4)' },
-  friendBtn: { marginTop: 14, paddingHorizontal: 22, paddingVertical: 10, borderRadius: 12, backgroundColor: '#2FB6A8' },
-  friendBtnOff: { backgroundColor: 'rgba(255,255,255,0.12)' },
-  friendTxt: { fontSize: 14, fontWeight: '700', color: '#16263F' },
+  name: { fontSize: 22, fontFamily: font.heading, color: '#fff', marginBottom: 4 },
+  bio: { fontSize: 13, fontFamily: font.medium, color: 'rgba(255,255,255,0.7)', marginBottom: 4, textAlign: 'center' },
+  location: { fontSize: 12, fontFamily: font.medium, color: 'rgba(255,255,255,0.6)' },
+  friendBtn: { marginTop: 14, paddingHorizontal: 22, paddingVertical: 10, borderRadius: radius.tile, backgroundColor: '#fff' },
+  friendBtnOff: { backgroundColor: 'rgba(255,255,255,0.18)' },
+  friendTxt: { fontSize: 14, fontFamily: font.bold, color: colors.brandBlue },
   friendTxtOff: { color: '#fff' },
-  stats: { flexDirection: 'row', backgroundColor: '#fff', marginHorizontal: 16, marginTop: 16, borderRadius: 16, borderWidth: 1, borderColor: '#E5E5DF', overflow: 'hidden' },
+  stats: { flexDirection: 'row', backgroundColor: colors.surface, marginHorizontal: 16, marginTop: 16, borderRadius: radius.card, overflow: 'hidden', ...shadow.card },
   stat: { flex: 1, padding: 14, alignItems: 'center' },
-  statBorder: { borderLeftWidth: 1, borderLeftColor: '#E5E5DF' },
-  statN: { fontSize: 18, fontWeight: '800', color: '#16263F', marginBottom: 2 },
-  statL: { fontSize: 10, color: '#888', fontWeight: '600', textTransform: 'uppercase' },
+  statBorder: { borderLeftWidth: 1, borderLeftColor: colors.hairline },
+  statN: { fontSize: 18, fontFamily: font.heading, color: colors.text, marginBottom: 2 },
+  statL: { fontSize: 10, color: colors.textMuted, fontFamily: font.bold, textTransform: 'uppercase' },
   section: { paddingHorizontal: 16, marginTop: 20 },
-  sectionTitle: { fontSize: 17, fontWeight: '800', color: '#16263F', marginBottom: 12 },
+  sectionTitle: { fontSize: 17, fontFamily: font.heading, color: colors.text, marginBottom: 12 },
   tagsWrap: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
-  tag: { paddingHorizontal: 13, paddingVertical: 7, borderRadius: 20, backgroundColor: '#fff', borderWidth: 1.5, borderColor: '#E5E5DF' },
-  tagTxt: { fontSize: 12, fontWeight: '600', color: '#16263F' },
-  empty: { fontSize: 13, color: '#888' },
-  eventCard: { flexDirection: 'row', alignItems: 'center', gap: 12, backgroundColor: '#fff', borderRadius: 14, padding: 12, marginBottom: 8, borderWidth: 1, borderColor: '#E5E5DF' },
+  tag: { paddingHorizontal: 14, paddingVertical: 8, borderRadius: radius.chip, backgroundColor: colors.surface, borderWidth: 1.5, borderColor: colors.hairline },
+  tagTxt: { fontSize: 12, fontFamily: font.semibold, color: colors.text },
+  empty: { fontSize: 13, fontFamily: font.medium, color: colors.textMuted },
+  eventCard: { flexDirection: 'row', alignItems: 'center', gap: 12, backgroundColor: colors.surface, borderRadius: radius.card, padding: 12, marginBottom: 9, ...shadow.card },
   eventEmoji: { fontSize: 24 },
-  eventTitle: { fontSize: 14, fontWeight: '700', color: '#16263F' },
-  eventMeta: { fontSize: 12, color: '#888', marginTop: 2 },
-  chevron: { fontSize: 22, color: '#ccc' },
+  eventTitle: { fontSize: 14, fontFamily: font.headingBold, color: colors.text },
+  eventMeta: { fontSize: 12, fontFamily: font.medium, color: colors.textMuted, marginTop: 2 },
+  chevron: { fontSize: 22, color: colors.textFaint },
 });

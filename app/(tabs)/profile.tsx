@@ -1,10 +1,12 @@
 import { Image } from 'expo-image';
+import { LinearGradient } from 'expo-linear-gradient';
 import { router, useFocusEffect } from 'expo-router';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { ActivityIndicator, Alert, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { useI18n } from '../lib/i18n';
 import { captureAvatarImage, moderateImageBase64, PickedMedia, pickAvatarImage, uploadJpeg } from '../lib/photos';
 import { supabase } from '../lib/supabase';
+import { colors, font, gradients, radius, shadow } from '../lib/theme';
 import { useUnread } from '../lib/unread';
 
 const ALL_INTERESTS =['⚽ Sport', '🎸 Music', '🏃 Running', '📸 Photo', '🐕 Dog Walks', '🎲 Board Games', '🍕 Food', '📚 Books', '🧘 Yoga', '🎨 Art'];
@@ -163,7 +165,7 @@ export default function ProfileScreen() {
   };
 
   if (loading) {
-    return <View style={styles.loadingWrap}><ActivityIndicator size="large" color="#2FB6A8" /></View>;
+    return <View style={styles.loadingWrap}><ActivityIndicator size="large" color={colors.brandBlue} /></View>;
   }
 
   const renderEvent = (e: any, withDelete: boolean) => {
@@ -190,7 +192,7 @@ export default function ProfileScreen() {
 
   return (
     <ScrollView style={styles.container} showsVerticalScrollIndicator={false}>
-      <View style={styles.hero}>
+      <LinearGradient colors={gradients.hero} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.hero}>
         <TouchableOpacity style={styles.avatar} onPress={pickAvatar} activeOpacity={0.8}>
           {avatarUrl ? (
             <Image source={{ uri: avatarUrl }} style={styles.avatarImg} contentFit="cover" transition={150} />
@@ -225,7 +227,7 @@ export default function ProfileScreen() {
             </TouchableOpacity>
           </>
         )}
-      </View>
+      </LinearGradient>
 
       {/* Tabs (tap a stat to switch the list below) */}
       <View style={styles.stats}>
@@ -325,59 +327,59 @@ export default function ProfileScreen() {
 }
 
 const styles = StyleSheet.create({
-  loadingWrap: { flex: 1, backgroundColor: '#FAFAF7', alignItems: 'center', justifyContent: 'center' },
-  container: { flex: 1, backgroundColor: '#FAFAF7' },
-  hero: { backgroundColor: '#16263F', padding: 28, paddingTop: 64, alignItems: 'center' },
-  avatar: { width: 80, height: 80, borderRadius: 40, backgroundColor: '#2FB6A8', alignItems: 'center', justifyContent: 'center', marginBottom: 14 },
+  loadingWrap: { flex: 1, backgroundColor: colors.bg, alignItems: 'center', justifyContent: 'center' },
+  container: { flex: 1, backgroundColor: colors.bg },
+  hero: { padding: 28, paddingTop: 64, alignItems: 'center' },
+  avatar: { width: 84, height: 84, borderRadius: 42, backgroundColor: 'rgba(255,255,255,0.18)', alignItems: 'center', justifyContent: 'center', marginBottom: 14 },
   avatarEmoji: { fontSize: 36 },
-  avatarImg: { width: 80, height: 80, borderRadius: 40 },
-  avatarOverlay: { position: 'absolute', width: 80, height: 80, borderRadius: 40, backgroundColor: 'rgba(47,182,168,0.55)', alignItems: 'center', justifyContent: 'center' },
-  avatarBadge: { position: 'absolute', right: -2, bottom: -2, width: 28, height: 28, borderRadius: 14, backgroundColor: '#16263F', borderWidth: 2, borderColor: '#16263F', alignItems: 'center', justifyContent: 'center' },
+  avatarImg: { width: 84, height: 84, borderRadius: 42 },
+  avatarOverlay: { position: 'absolute', width: 84, height: 84, borderRadius: 42, backgroundColor: 'rgba(42,134,196,0.5)', alignItems: 'center', justifyContent: 'center' },
+  avatarBadge: { position: 'absolute', right: -2, bottom: -2, width: 28, height: 28, borderRadius: 14, backgroundColor: colors.brandBlueDeep, borderWidth: 2, borderColor: '#fff', alignItems: 'center', justifyContent: 'center' },
   avatarBadgeTxt: { fontSize: 13 },
-  changePhotoBtn: { marginBottom: 12, paddingHorizontal: 14, paddingVertical: 6, borderRadius: 16, backgroundColor: 'rgba(255,255,255,0.1)' },
-  changePhotoTxt: { color: '#2FB6A8', fontSize: 12, fontWeight: '700' },
-  name: { fontSize: 22, fontWeight: '800', color: '#fff', marginBottom: 4 },
-  bio: { fontSize: 13, color: 'rgba(255,255,255,0.55)', marginBottom: 4 },
-  location: { fontSize: 12, color: 'rgba(255,255,255,0.4)', marginBottom: 16 },
-  editBtn: { paddingHorizontal: 16, paddingVertical: 8, borderRadius: 9, backgroundColor: 'rgba(255,255,255,0.1)' },
-  editTxt: { color: '#fff', fontSize: 13, fontWeight: '600' },
-  editInput: { backgroundColor: 'rgba(255,255,255,0.08)', borderWidth: 1, borderColor: 'rgba(255,255,255,0.2)', borderRadius: 10, padding: 12, fontSize: 14, color: '#fff', marginBottom: 8, width: '100%' },
-  saveBtn: { backgroundColor: '#2FB6A8', paddingHorizontal: 24, paddingVertical: 10, borderRadius: 10, marginTop: 4 },
-  saveBtnTxt: { fontSize: 14, fontWeight: '700', color: '#16263F' },
-  stats: { flexDirection: 'row', backgroundColor: '#fff', marginHorizontal: 16, marginTop: 16, borderRadius: 16, borderWidth: 1, borderColor: '#E5E5DF', overflow: 'hidden' },
+  changePhotoBtn: { marginBottom: 12, paddingHorizontal: 14, paddingVertical: 6, borderRadius: radius.chip, backgroundColor: 'rgba(255,255,255,0.18)' },
+  changePhotoTxt: { color: '#fff', fontSize: 12, fontFamily: font.bold },
+  name: { fontSize: 22, fontFamily: font.heading, color: '#fff', marginBottom: 4 },
+  bio: { fontSize: 13, fontFamily: font.medium, color: 'rgba(255,255,255,0.7)', marginBottom: 4 },
+  location: { fontSize: 12, fontFamily: font.medium, color: 'rgba(255,255,255,0.6)', marginBottom: 16 },
+  editBtn: { paddingHorizontal: 16, paddingVertical: 8, borderRadius: radius.tile, backgroundColor: 'rgba(255,255,255,0.18)' },
+  editTxt: { color: '#fff', fontSize: 13, fontFamily: font.semibold },
+  editInput: { backgroundColor: 'rgba(255,255,255,0.14)', borderWidth: 1, borderColor: 'rgba(255,255,255,0.25)', borderRadius: 10, padding: 12, fontSize: 14, fontFamily: font.medium, color: '#fff', marginBottom: 8, width: '100%' },
+  saveBtn: { backgroundColor: '#fff', paddingHorizontal: 24, paddingVertical: 10, borderRadius: radius.tile, marginTop: 4 },
+  saveBtnTxt: { fontSize: 14, fontFamily: font.bold, color: colors.brandBlue },
+  stats: { flexDirection: 'row', backgroundColor: colors.surface, marginHorizontal: 16, marginTop: 16, borderRadius: radius.card, overflow: 'hidden', ...shadow.card },
   stat: { flex: 1, padding: 14, alignItems: 'center', borderBottomWidth: 3, borderBottomColor: 'transparent' },
-  statOn: { borderBottomColor: '#2FB6A8', backgroundColor: '#E7F7F4' },
-  statBorder: { borderLeftWidth: 1, borderLeftColor: '#E5E5DF' },
-  statN: { fontSize: 18, fontWeight: '800', color: '#16263F', marginBottom: 2 },
-  statL: { fontSize: 10, color: '#888', fontWeight: '600', textTransform: 'uppercase' },
+  statOn: { borderBottomColor: colors.brandTeal, backgroundColor: colors.chipBg },
+  statBorder: { borderLeftWidth: 1, borderLeftColor: colors.hairline },
+  statN: { fontSize: 18, fontFamily: font.heading, color: colors.text, marginBottom: 2 },
+  statL: { fontSize: 10, color: colors.textMuted, fontFamily: font.bold, textTransform: 'uppercase' },
   section: { paddingHorizontal: 16, marginTop: 20 },
-  sectionTitle: { fontSize: 17, fontWeight: '800', color: '#16263F', marginBottom: 12 },
+  sectionTitle: { fontSize: 17, fontFamily: font.heading, color: colors.text, marginBottom: 12 },
   tagsWrap: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
-  tag: { paddingHorizontal: 13, paddingVertical: 7, borderRadius: 20, backgroundColor: '#fff', borderWidth: 1.5, borderColor: '#E5E5DF' },
-  tagOn: { backgroundColor: '#16263F', borderColor: '#16263F' },
-  tagTxt: { fontSize: 12, fontWeight: '600', color: '#16263F' },
-  tagTxtOn: { color: '#2FB6A8' },
-  saveInterests: { marginTop: 12, padding: 10, borderRadius: 10, backgroundColor: '#16263F', alignItems: 'center' },
-  saveInterestsTxt: { fontSize: 13, fontWeight: '700', color: '#2FB6A8' },
-  empty: { fontSize: 13, color: '#888' },
-  eventCard: { flexDirection: 'row', alignItems: 'center', gap: 12, backgroundColor: '#fff', borderRadius: 14, padding: 12, marginBottom: 8, borderWidth: 1, borderColor: '#E5E5DF' },
+  tag: { paddingHorizontal: 14, paddingVertical: 8, borderRadius: radius.chip, backgroundColor: colors.surface, borderWidth: 1.5, borderColor: colors.hairline },
+  tagOn: { backgroundColor: colors.brandBlue, borderColor: colors.brandBlue },
+  tagTxt: { fontSize: 12, fontFamily: font.semibold, color: colors.text },
+  tagTxtOn: { color: '#fff' },
+  saveInterests: { marginTop: 12, padding: 11, borderRadius: radius.tile, backgroundColor: colors.brandBlue, alignItems: 'center' },
+  saveInterestsTxt: { fontSize: 13, fontFamily: font.bold, color: '#fff' },
+  empty: { fontSize: 13, fontFamily: font.medium, color: colors.textMuted },
+  eventCard: { flexDirection: 'row', alignItems: 'center', gap: 12, backgroundColor: colors.surface, borderRadius: radius.card, padding: 12, marginBottom: 9, ...shadow.card },
   eventMain: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: 12 },
-  unreadBadge: { minWidth: 22, height: 22, borderRadius: 11, backgroundColor: '#2FB6A8', alignItems: 'center', justifyContent: 'center', paddingHorizontal: 6 },
-  unreadBadgeTxt: { color: '#16263F', fontSize: 11, fontWeight: '800' },
-  eventDelBtn: { width: 36, height: 36, borderRadius: 10, backgroundColor: '#FDECEC', alignItems: 'center', justifyContent: 'center' },
+  unreadBadge: { minWidth: 22, height: 22, borderRadius: 11, backgroundColor: colors.brandTeal, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 6 },
+  unreadBadgeTxt: { color: '#0E2A33', fontSize: 11, fontFamily: font.extrabold },
+  eventDelBtn: { width: 36, height: 36, borderRadius: radius.tile, backgroundColor: '#FDECEC', alignItems: 'center', justifyContent: 'center' },
   eventDelTxt: { fontSize: 16 },
   eventEmoji: { fontSize: 24 },
-  eventTitle: { fontSize: 14, fontWeight: '700', color: '#16263F' },
-  eventMeta: { fontSize: 12, color: '#888', marginTop: 2 },
-  chevron: { fontSize: 22, color: '#ccc' },
-  friendAvatar: { width: 44, height: 44, borderRadius: 22, backgroundColor: '#2FB6A8', alignItems: 'center', justifyContent: 'center', overflow: 'hidden' },
+  eventTitle: { fontSize: 14, fontFamily: font.headingBold, color: colors.text },
+  eventMeta: { fontSize: 12, fontFamily: font.medium, color: colors.textMuted, marginTop: 2 },
+  chevron: { fontSize: 22, color: colors.textFaint },
+  friendAvatar: { width: 44, height: 44, borderRadius: 22, backgroundColor: colors.brandTeal, alignItems: 'center', justifyContent: 'center', overflow: 'hidden' },
   friendAvatarImg: { width: 44, height: 44 },
   reqDot: { position: 'absolute', top: 6, right: 10, minWidth: 18, height: 18, borderRadius: 9, backgroundColor: '#C0392B', alignItems: 'center', justifyContent: 'center', paddingHorizontal: 4 },
-  reqDotTxt: { color: '#fff', fontSize: 10, fontWeight: '800' },
-  acceptBtn: { width: 36, height: 36, borderRadius: 10, backgroundColor: '#2FB6A8', alignItems: 'center', justifyContent: 'center' },
-  acceptTxt: { fontSize: 16, fontWeight: '800', color: '#16263F' },
-  declineBtn: { width: 36, height: 36, borderRadius: 10, backgroundColor: '#FDECEC', alignItems: 'center', justifyContent: 'center' },
-  declineTxt: { fontSize: 16, fontWeight: '800', color: '#C0392B' },
-  signOut: { marginHorizontal: 16, marginTop: 20, padding: 14, borderRadius: 12, borderWidth: 1.5, borderColor: '#E5E5DF', alignItems: 'center' },
-  signOutTxt: { fontSize: 14, fontWeight: '700', color: '#888' },
+  reqDotTxt: { color: '#fff', fontSize: 10, fontFamily: font.extrabold },
+  acceptBtn: { width: 36, height: 36, borderRadius: radius.tile, backgroundColor: colors.brandTeal, alignItems: 'center', justifyContent: 'center' },
+  acceptTxt: { fontSize: 16, fontFamily: font.extrabold, color: '#0E2A33' },
+  declineBtn: { width: 36, height: 36, borderRadius: radius.tile, backgroundColor: '#FDECEC', alignItems: 'center', justifyContent: 'center' },
+  declineTxt: { fontSize: 16, fontFamily: font.extrabold, color: '#C0392B' },
+  signOut: { marginHorizontal: 16, marginTop: 20, padding: 14, borderRadius: radius.tile, borderWidth: 1.5, borderColor: colors.hairline, alignItems: 'center' },
+  signOutTxt: { fontSize: 14, fontFamily: font.bold, color: colors.textMuted },
 });
