@@ -48,6 +48,8 @@ export default function MapScreen() {
   const [mapHtml, setMapHtml] = useState('');
   const [userId, setUserId] = useState('');
   const [likedEvents, setLikedEvents] = useState<string[]>([]);
+  // Distinct people across all events (unique participants, not summed seats).
+  const [peopleCount, setPeopleCount] = useState(0);
   // Map-tap creation is armed only after pressing the Create Event button.
   const [placing, setPlacing] = useState(false);
 
@@ -63,6 +65,12 @@ export default function MapScreen() {
         people: e.people, max: e.max_people, now: e.is_now, location: e.location, creator: e.creator_id, photo: e.photo_url, likes: e.likes,
       }));
       setDbEvents(mapped);
+      // Count distinct participants across these events (not the sum of per-event seats).
+      const ids = mapped.map((e: any) => e.id);
+      if (ids.length) {
+        const { data: parts } = await supabase.from('event_participants').select('user_id').in('event_id', ids);
+        setPeopleCount(new Set((parts || []).map((p: any) => p.user_id)).size);
+      } else setPeopleCount(0);
       // Rebuild the map only when the event set actually changed (avoids reload flicker).
       const sig = mapped.map((e: any) => `${e.id}:${e.people}`).join(',');
       if (loc && sig !== sigRef.current) {
@@ -233,7 +241,7 @@ export default function MapScreen() {
           <Text style={styles.statLbl}>{t('map.nearby')}</Text>
         </View>
         <View style={styles.stat}>
-          <Text style={styles.statNum}>{events.reduce((s, e) => s + (e.people || 0), 0)}</Text>
+          <Text style={styles.statNum}>{peopleCount}</Text>
           <Text style={styles.statLbl}>{t('map.people')}</Text>
         </View>
       </View>

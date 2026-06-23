@@ -45,3 +45,6 @@ app-example
 # supabase CLI local state
 supabase/.temp
 supabase/.branches
+
+# local design-handoff review (extracted zip)
+.design_review
