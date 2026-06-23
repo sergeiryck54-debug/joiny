@@ -24,7 +24,7 @@ function LogoMark() {
 
 export default function LoginScreen() {
   const { lang, setLang, t } = useI18n();
-  const [step, setStep] = useState<'email' | 'code'>('email');
+  const [step, setStep] = useState<'intro' | 'email' | 'code'>('intro');
   const [email, setEmail] = useState('');
   const [code, setCode] = useState('');
   const [loading, setLoading] = useState(false);
@@ -40,7 +40,7 @@ export default function LoginScreen() {
 
   const pickLang = (l: typeof lang) => { setLang(l); AsyncStorage.setItem('lang', l); };
 
-  useFocusEffect(useCallback(() => { setStep('email'); setCode(''); setError(''); }, []));
+  useFocusEffect(useCallback(() => { setStep('intro'); setCode(''); setError(''); }, []));
 
   const sendCode = async () => {
     if (!email.includes('@')) { setError(t('login.errEmail')); return; }
@@ -78,8 +78,9 @@ export default function LoginScreen() {
     );
   }
 
-  const disabled = step === 'email' ? (!email || loading) : (code.length < 6 || loading);
-  const onSubmit = step === 'email' ? sendCode : verifyCode;
+  const disabled = step === 'intro' ? false : step === 'email' ? (!email || loading) : (code.length < 6 || loading);
+  const onSubmit = step === 'intro' ? () => setStep('email') : step === 'email' ? sendCode : verifyCode;
+  const ctaLabel = step === 'intro' ? t('onb.cta') : step === 'email' ? t('login.send') : t('login.verify');
 
   return (
     <LinearGradient colors={gradients.navy} style={styles.container}>
@@ -101,7 +102,19 @@ export default function LoginScreen() {
             <Text style={styles.wordmark}>joiny</Text>
           </View>
 
-          {step === 'email' ? (
+          {step === 'intro' ? (
+            <>
+              <Text style={styles.tagline}>{t('onb.tagline')}</Text>
+              <View style={styles.features}>
+                {[['📍', t('onb.feat1')], ['👥', t('onb.feat2')], ['📅', t('onb.feat3')]].map(([emoji, label]) => (
+                  <View key={label} style={styles.feature}>
+                    <View style={styles.featTile}><Text style={styles.featEmoji}>{emoji}</Text></View>
+                    <Text style={styles.featLabel}>{label}</Text>
+                  </View>
+                ))}
+              </View>
+            </>
+          ) : step === 'email' ? (
             <>
               <Text style={styles.title}>{t('login.title1')} <Text style={styles.accent}>{t('login.title2')}</Text>{t('login.title3')}</Text>
               <Text style={styles.sub}>{t('login.sub')}</Text>
@@ -136,7 +149,7 @@ export default function LoginScreen() {
 
           <TouchableOpacity activeOpacity={0.9} disabled={disabled} onPress={onSubmit} style={[styles.ctaWrap, disabled && styles.ctaOff]}>
             <LinearGradient colors={gradients.brand} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={styles.cta}>
-              {loading ? <ActivityIndicator color="#fff" /> : <Text style={styles.ctaTxt}>{step === 'email' ? t('login.send') : t('login.verify')}</Text>}
+              {loading ? <ActivityIndicator color="#fff" /> : <Text style={styles.ctaTxt}>{ctaLabel}</Text>}
             </LinearGradient>
           </TouchableOpacity>
 
@@ -172,6 +185,12 @@ const styles = StyleSheet.create({
   title: { fontFamily: font.heading, fontSize: 34, color: '#fff', lineHeight: 42, marginBottom: 12 },
   accent: { color: colors.brandTeal },
   sub: { fontFamily: font.medium, fontSize: 15, color: 'rgba(255,255,255,0.55)', marginBottom: 30 },
+  tagline: { fontFamily: font.medium, fontSize: 17, color: 'rgba(255,255,255,0.7)', lineHeight: 25, marginBottom: 32 },
+  features: { flexDirection: 'row', gap: 12, marginBottom: 8 },
+  feature: { flex: 1, alignItems: 'center', gap: 8 },
+  featTile: { width: 60, height: 60, borderRadius: 16, backgroundColor: 'rgba(70,208,194,0.16)', alignItems: 'center', justifyContent: 'center' },
+  featEmoji: { fontSize: 26 },
+  featLabel: { fontFamily: font.bold, fontSize: 13, color: 'rgba(255,255,255,0.85)' },
   input: { backgroundColor: 'rgba(255,255,255,0.09)', borderWidth: 1.5, borderColor: 'rgba(255,255,255,0.16)', borderRadius: 14, padding: 16, fontSize: 16, fontFamily: font.semibold, color: '#fff' },
   codeInput: { fontSize: 28, letterSpacing: 8, textAlign: 'center', fontFamily: font.extrabold },
   error: { color: '#FF9AA2', fontFamily: font.semibold, fontSize: 13, marginTop: 10 },

@@ -25,6 +25,14 @@ const TR: Record<string, Record<Lang, string>> = {
   'tab.me': { EN: 'Me', RU: 'Я', TH: 'ฉัน' },
   'tab.alerts': { EN: 'Alerts', RU: 'Уведомл.', TH: 'แจ้งเตือน' },
 
+  // ---- onboarding ----
+  'onb.tagline': { EN: 'Find people for what you’re into — right now, near you.', RU: 'Находи компанию на события рядом — прямо сейчас.', TH: 'หาเพื่อนร่วมกิจกรรมใกล้คุณ — ตอนนี้เลย' },
+  'onb.feat1': { EN: 'Nearby', RU: 'Рядом', TH: 'ใกล้ตัว' },
+  'onb.feat2': { EN: 'People', RU: 'Люди', TH: 'ผู้คน' },
+  'onb.feat3': { EN: 'Events', RU: 'События', TH: 'กิจกรรม' },
+  'onb.cta': { EN: 'Continue with email', RU: 'Продолжить через e-mail', TH: 'ดำเนินการต่อด้วยอีเมล' },
+  'onb.haveAccount': { EN: 'Sign in · EN / RU / TH', RU: 'Войти · EN / RU / TH', TH: 'เข้าสู่ระบบ · EN / RU / TH' },
+
   // ---- login ----
   'login.title1': { EN: 'Find your', RU: 'Найди своих', TH: 'หาเพื่อน' },
   'login.title2': { EN: 'people', RU: 'людей', TH: 'ของคุณ' },
