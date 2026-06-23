@@ -12,6 +12,9 @@ create table if not exists public.stories (
   created_at timestamptz not null default now(),
   expires_at timestamptz not null default (now() + interval '24 hours')
 );
+-- Optional photo/video for the story (stored in the event-photos bucket).
+alter table public.stories add column if not exists media_url text;
+
 create index if not exists stories_expires_idx on public.stories (expires_at);
 create index if not exists stories_user_idx on public.stories (user_id, created_at desc);
 

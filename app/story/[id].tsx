@@ -3,11 +3,17 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { router, useLocalSearchParams } from 'expo-router';
 import { useEffect, useRef, useState } from 'react';
 import { ActivityIndicator, Animated, Pressable, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { WebView } from 'react-native-webview';
 import { useI18n } from '../lib/i18n';
+import { isVideoUrl } from '../lib/photos';
 import { supabase } from '../lib/supabase';
 import { colors, font, gradients, radius } from '../lib/theme';
 
-const DURATION = 7000; // auto-advance
+const DURATION = 7000; // auto-advance (photos / no-media)
+
+function videoHtml(url: string) {
+  return `<!DOCTYPE html><html><head><meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0"><style>html,body{margin:0;background:#10243C;height:100%;width:100%}video{width:100%;height:100%;object-fit:cover}</style></head><body><video src="${url}" autoplay loop playsinline webkit-playsinline></video></body></html>`;
+}
 
 export default function StoryScreen() {
   const { t } = useI18n();
@@ -32,13 +38,15 @@ export default function StoryScreen() {
     })();
   }, [id]);
 
+  const isVideo = !!story?.media_url && isVideoUrl(story.media_url);
+
   useEffect(() => {
-    if (loading || !story) return;
+    if (loading || !story || isVideo) return; // let videos play; close via ✕ / tap
     progress.setValue(0);
     const anim = Animated.timing(progress, { toValue: 1, duration: DURATION, useNativeDriver: false });
     anim.start(({ finished }) => { if (finished) router.back(); });
     return () => anim.stop();
-  }, [loading, story, progress]);
+  }, [loading, story, isVideo, progress]);
 
   const openEvent = () => { if (story?.event_id) router.replace(`/event/${story.event_id}` as any); };
 
@@ -59,6 +67,16 @@ export default function StoryScreen() {
   return (
     <Pressable style={{ flex: 1 }} onPress={() => router.back()}>
       <LinearGradient colors={gradients.story} style={styles.container}>
+        {/* media background */}
+        {story.media_url ? (
+          <View style={StyleSheet.absoluteFill}>
+            {isVideo
+              ? <WebView originWhitelist={['*']} source={{ html: videoHtml(story.media_url) }} style={StyleSheet.absoluteFill} allowsInlineMediaPlayback mediaPlaybackRequiresUserAction={false} pointerEvents="none" />
+              : <Image source={{ uri: story.media_url }} style={StyleSheet.absoluteFill} contentFit="cover" />}
+            <View style={styles.scrim} />
+          </View>
+        ) : null}
+
         {/* progress */}
         <View style={styles.progressTrack}><Animated.View style={[styles.progressFill, { width }]} /></View>
 
@@ -75,8 +93,8 @@ export default function StoryScreen() {
         </View>
 
         {/* body */}
-        <View style={styles.body}>
-          <Text style={styles.emoji}>{story.emoji || '✨'}</Text>
+        <View style={[styles.body, story.media_url && styles.bodyBottom]}>
+          {!story.media_url && <Text style={styles.emoji}>{story.emoji || '✨'}</Text>}
           <Text style={styles.title}>{story.title}</Text>
           {story.event_id && (
             <TouchableOpacity style={styles.eventPill} onPress={openEvent}>
@@ -96,6 +114,7 @@ const styles = StyleSheet.create({
   gone: { color: 'rgba(255,255,255,0.5)', fontSize: 40 },
   closeLink: { color: '#fff', fontSize: 22 },
   container: { flex: 1, paddingTop: 50, paddingHorizontal: 16 },
+  scrim: { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(16,36,60,0.34)' },
   progressTrack: { height: 3, borderRadius: 2, backgroundColor: 'rgba(255,255,255,0.25)', overflow: 'hidden', marginTop: 4 },
   progressFill: { height: 3, backgroundColor: '#fff' },
   header: { flexDirection: 'row', alignItems: 'center', gap: 10, marginTop: 14 },
@@ -105,6 +124,7 @@ const styles = StyleSheet.create({
   time: { color: 'rgba(255,255,255,0.6)', fontSize: 12, fontFamily: font.medium },
   close: { color: '#fff', fontSize: 24, paddingHorizontal: 4 },
   body: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: 18, paddingHorizontal: 12 },
+  bodyBottom: { justifyContent: 'flex-end', paddingBottom: 50 },
   emoji: { fontSize: 64 },
   title: { color: '#fff', fontSize: 28, fontFamily: font.heading, textAlign: 'center', lineHeight: 36 },
   eventPill: { marginTop: 6, backgroundColor: 'rgba(255,255,255,0.16)', borderWidth: 1, borderColor: 'rgba(255,255,255,0.3)', borderRadius: radius.pill, paddingHorizontal: 18, paddingVertical: 11 },

@@ -4,6 +4,7 @@ import { router, useFocusEffect } from 'expo-router';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { ActivityIndicator, RefreshControl, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { useI18n } from '../lib/i18n';
+import { isVideoUrl } from '../lib/photos';
 import { supabase } from '../lib/supabase';
 import { colors, font, gradients, radius, shadow } from '../lib/theme';
 
@@ -179,7 +180,11 @@ export default function FeedScreen() {
             <TouchableOpacity key={s.id} style={styles.storyItem} activeOpacity={0.8} onPress={() => router.push(`/story/${s.id}` as any)}>
               <LinearGradient colors={gradients.brand} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.storyRing}>
                 <View style={styles.storyInner}>
-                  {s.avatar_url ? <Image source={{ uri: s.avatar_url }} style={styles.storyAvImg} contentFit="cover" /> : <Text style={styles.storyEmoji}>{s.emoji || '✨'}</Text>}
+                  {s.media_url && !isVideoUrl(s.media_url)
+                    ? <Image source={{ uri: s.media_url }} style={styles.storyAvImg} contentFit="cover" />
+                    : s.avatar_url
+                      ? <Image source={{ uri: s.avatar_url }} style={styles.storyAvImg} contentFit="cover" />
+                      : <Text style={styles.storyEmoji}>{s.emoji || '✨'}</Text>}
                 </View>
               </LinearGradient>
               <Text style={styles.storyName} numberOfLines={1}>{s.user_name || '…'}</Text>

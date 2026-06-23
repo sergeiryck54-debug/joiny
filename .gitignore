@@ -53,3 +53,4 @@ supabase/.branches
 .emu.png
 .t.png
 .t.json
+gradle_build.txt
