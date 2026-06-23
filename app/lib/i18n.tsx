@@ -207,6 +207,15 @@ const TR: Record<string, Record<Lang, string>> = {
   'chat.ph': { EN: 'Message…', RU: 'Сообщение…', TH: 'ข้อความ…' },
   'chat.empty': { EN: 'No messages yet — say hi 👋', RU: 'Сообщений пока нет — поздоровайся 👋', TH: 'ยังไม่มีข้อความ — ทักทายกันเลย 👋' },
 
+  // ---- search ----
+  'search.ph': { EN: 'People, events, places', RU: 'Люди, события, места', TH: 'คน กิจกรรม สถานที่' },
+  'search.categories': { EN: 'Categories', RU: 'Категории', TH: 'หมวดหมู่' },
+  'search.peopleNearby': { EN: 'People nearby', RU: 'Люди рядом', TH: 'ผู้คนใกล้คุณ' },
+  'search.eventsFound': { EN: 'Events', RU: 'События', TH: 'กิจกรรม' },
+  'search.peopleFound': { EN: 'People', RU: 'Люди', TH: 'ผู้คน' },
+  'search.none': { EN: 'Nothing found', RU: 'Ничего не найдено', TH: 'ไม่พบสิ่งใด' },
+  'search.commonInterests': { EN: '{n} shared interests', RU: '{n} общих интересов', TH: 'สนใจตรงกัน {n}' },
+
   // ---- user profile ----
   'user.interests': { EN: 'Interests', RU: 'Интересы', TH: 'ความสนใจ' },
   'user.events': { EN: 'Events', RU: 'События', TH: 'กิจกรรม' },

@@ -206,6 +206,10 @@ export default function MapScreen() {
 
   return (
     <View style={styles.container}>
+      <TouchableOpacity style={styles.searchEntry} activeOpacity={0.7} onPress={() => router.push('/search' as any)}>
+        <Text style={styles.searchEntryIcon}>🔍</Text>
+        <Text style={styles.searchEntryTxt}>{t('search.ph')}</Text>
+      </TouchableOpacity>
       <View style={styles.mapWrap}>
         <WebView
           originWhitelist={['*']}
@@ -315,7 +319,10 @@ const styles = StyleSheet.create({
   loading: { flex: 1, backgroundColor: colors.navy2, alignItems: 'center', justifyContent: 'center', gap: 16 },
   loadingTxt: { color: colors.brandTeal, fontSize: 16, fontFamily: font.semibold },
   container: { flex: 1, backgroundColor: colors.bg },
-  mapWrap: { height: 240, marginHorizontal: 14, marginTop: 52, borderRadius: radius.card, overflow: 'hidden', backgroundColor: colors.soft3 },
+  searchEntry: { flexDirection: 'row', alignItems: 'center', gap: 8, marginHorizontal: 14, marginTop: 54, height: 46, paddingHorizontal: 16, borderRadius: radius.pill, backgroundColor: colors.surface, ...shadow.card },
+  searchEntryIcon: { fontSize: 15 },
+  searchEntryTxt: { fontSize: 15, fontFamily: font.medium, color: colors.textMuted },
+  mapWrap: { height: 230, marginHorizontal: 14, marginTop: 10, borderRadius: radius.card, overflow: 'hidden', backgroundColor: colors.soft3 },
   mapHint: { position: 'absolute', bottom: 10, alignSelf: 'center', backgroundColor: 'rgba(22,38,62,0.85)', paddingHorizontal: 12, paddingVertical: 6, borderRadius: radius.chip },
   mapHintTxt: { color: '#fff', fontSize: 12, fontFamily: font.semibold, textAlign: 'center' },
   statsBar: { flexDirection: 'row', marginHorizontal: 14, marginTop: 12, backgroundColor: colors.surface, borderRadius: radius.card, overflow: 'hidden', ...shadow.card },
