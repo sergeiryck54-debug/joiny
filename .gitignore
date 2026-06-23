@@ -48,3 +48,8 @@ supabase/.branches
 
 # local design-handoff review (extracted zip)
 .design_review
+
+# scratch screenshots / temp probes
+.emu.png
+.t.png
+.t.json
