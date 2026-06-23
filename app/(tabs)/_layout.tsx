@@ -3,6 +3,7 @@ import { useEffect, useState } from 'react';
 import { ActivityIndicator, Text, View } from 'react-native';
 import { useI18n } from '../lib/i18n';
 import { supabase } from '../lib/supabase';
+import { colors, font } from '../lib/theme';
 
 export default function TabLayout() {
   const { t } = useI18n();
@@ -24,8 +25,8 @@ export default function TabLayout() {
   // Never render the tabs without a session.
   if (authed !== true) {
     return (
-      <View style={{ flex: 1, backgroundColor: '#16263F', alignItems: 'center', justifyContent: 'center' }}>
-        <ActivityIndicator size="large" color="#2FB6A8" />
+      <View style={{ flex: 1, backgroundColor: colors.bg, alignItems: 'center', justifyContent: 'center' }}>
+        <ActivityIndicator size="large" color={colors.brandBlue} />
       </View>
     );
   }
@@ -33,13 +34,16 @@ export default function TabLayout() {
   return (
     <Tabs
       screenOptions={{
-        tabBarActiveTintColor: '#2FB6A8',
-        tabBarInactiveTintColor: '#888',
+        tabBarActiveTintColor: colors.brandBlue,
+        tabBarInactiveTintColor: colors.textFaint,
+        tabBarLabelStyle: { fontFamily: font.bold, fontSize: 10, marginTop: 2 },
         tabBarStyle: {
-          backgroundColor: '#fff',
-          borderTopColor: '#E5E5DF',
-          height: 60,
-          paddingBottom: 8,
+          backgroundColor: colors.surface,
+          borderTopColor: colors.hairline,
+          borderTopWidth: 1,
+          height: 68,
+          paddingBottom: 10,
+          paddingTop: 8,
         },
         headerShown: false,
       }}

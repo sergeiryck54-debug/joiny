@@ -4,8 +4,9 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { ActivityIndicator, RefreshControl, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { useI18n } from '../lib/i18n';
 import { supabase } from '../lib/supabase';
+import { colors, font, radius, shadow } from '../lib/theme';
 
-const byNewest = (a: any, b: any) => new Date(b.created).getTime() - new Date(a.created).getTime();
+const byNewest =(a: any, b: any) => new Date(b.created).getTime() - new Date(a.created).getTime();
 
 export default function FeedScreen() {
   const { t } = useI18n();
@@ -137,7 +138,7 @@ export default function FeedScreen() {
   };
 
   if (loading) {
-    return <View style={styles.loadingWrap}><ActivityIndicator size="large" color="#2FB6A8" /></View>;
+    return <View style={styles.loadingWrap}><ActivityIndicator size="large" color={colors.brandBlue} /></View>;
   }
 
   return (
@@ -154,9 +155,9 @@ export default function FeedScreen() {
 
       {writing && (
         <View style={styles.composer}>
-          <TextInput style={styles.composerInput} placeholder={t('feed.composerPh')} placeholderTextColor="#aaa" value={text} onChangeText={setText} multiline />
+          <TextInput style={styles.composerInput} placeholder={t('feed.composerPh')} placeholderTextColor={colors.textFaint} value={text} onChangeText={setText} multiline />
           <TouchableOpacity style={[styles.postBtn, (text.trim().length < 3 || posting) && styles.postBtnOff]} disabled={text.trim().length < 3 || posting} onPress={createPost}>
-            {posting ? <ActivityIndicator color="#16263F" /> : <Text style={styles.postBtnTxt}>{t('feed.post')}</Text>}
+            {posting ? <ActivityIndicator color="#fff" /> : <Text style={styles.postBtnTxt}>{t('feed.post')}</Text>}
           </TouchableOpacity>
         </View>
       )}
@@ -210,31 +211,31 @@ export default function FeedScreen() {
 }
 
 const styles = StyleSheet.create({
-  loadingWrap: { flex: 1, backgroundColor: '#FAFAF7', alignItems: 'center', justifyContent: 'center' },
-  container: { flex: 1, backgroundColor: '#FAFAF7' },
-  header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', padding: 18, paddingTop: 56 },
-  headerTitle: { fontSize: 26, fontWeight: '800', color: '#16263F' },
-  headerSub: { fontSize: 13, color: '#888', marginTop: 2 },
-  writeBtn: { width: 40, height: 40, borderRadius: 20, backgroundColor: '#16263F', alignItems: 'center', justifyContent: 'center' },
-  writeBtnTxt: { fontSize: 16, color: '#2FB6A8' },
-  composer: { marginHorizontal: 16, marginBottom: 10, backgroundColor: '#fff', borderRadius: 14, borderWidth: 1, borderColor: '#E5E5DF', padding: 12 },
-  composerInput: { minHeight: 60, fontSize: 14, color: '#16263F', textAlignVertical: 'top' },
-  postBtn: { alignSelf: 'flex-end', backgroundColor: '#2FB6A8', paddingHorizontal: 18, paddingVertical: 8, borderRadius: 10, marginTop: 8 },
+  loadingWrap: { flex: 1, backgroundColor: colors.bg, alignItems: 'center', justifyContent: 'center' },
+  container: { flex: 1, backgroundColor: colors.bg },
+  header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 18, paddingTop: 58, paddingBottom: 8 },
+  headerTitle: { fontSize: 26, fontFamily: font.heading, color: colors.text },
+  headerSub: { fontSize: 13, fontFamily: font.medium, color: colors.textMuted, marginTop: 1 },
+  writeBtn: { width: 42, height: 42, borderRadius: 21, backgroundColor: colors.brandBlue, alignItems: 'center', justifyContent: 'center', ...shadow.cta },
+  writeBtnTxt: { fontSize: 17, color: '#fff' },
+  composer: { marginHorizontal: 16, marginBottom: 10, backgroundColor: colors.surface, borderRadius: radius.card, padding: 14, ...shadow.card },
+  composerInput: { minHeight: 60, fontSize: 14, fontFamily: font.medium, color: colors.text, textAlignVertical: 'top' },
+  postBtn: { alignSelf: 'flex-end', backgroundColor: colors.brandBlue, paddingHorizontal: 20, paddingVertical: 9, borderRadius: radius.cta, marginTop: 8 },
   postBtnOff: { opacity: 0.4 },
-  postBtnTxt: { fontSize: 13, fontWeight: '700', color: '#16263F' },
-  empty: { textAlign: 'center', color: '#888', marginTop: 40 },
-  post: { backgroundColor: '#fff', marginBottom: 12, borderTopWidth: 1, borderBottomWidth: 1, borderColor: '#E5E5DF', padding: 12 },
-  postHead: { flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 8 },
-  postAv: { width: 40, height: 40, borderRadius: 20, alignItems: 'center', justifyContent: 'center' },
-  postAvImg: { width: 40, height: 40 },
-  postAvEmoji: { fontSize: 20 },
-  postUser: { fontSize: 14, fontWeight: '700', color: '#16263F' },
-  postActivity: { fontSize: 11, color: '#888', marginTop: 1 },
-  friendBadge: { backgroundColor: '#2FB6A8', paddingHorizontal: 8, paddingVertical: 3, borderRadius: 10 },
-  friendBadgeTxt: { fontSize: 11, fontWeight: '800', color: '#16263F' },
-  postLoc: { fontSize: 12, color: '#888', marginBottom: 6 },
-  postCaption: { fontSize: 14, color: '#333', lineHeight: 20, marginBottom: 8 },
-  openHint: { fontSize: 13, fontWeight: '700', color: '#1E8C80' },
-  postActions: { flexDirection: 'row', gap: 16 },
-  actionTxt: { fontSize: 14, fontWeight: '600', color: '#555' },
+  postBtnTxt: { fontSize: 13, fontFamily: font.extrabold, color: '#fff' },
+  empty: { textAlign: 'center', fontFamily: font.medium, color: colors.textMuted, marginTop: 40 },
+  post: { backgroundColor: colors.surface, marginHorizontal: 14, marginBottom: 12, borderRadius: radius.card, padding: 14, ...shadow.card },
+  postHead: { flexDirection: 'row', alignItems: 'center', gap: 11, marginBottom: 8 },
+  postAv: { width: 44, height: 44, borderRadius: 22, alignItems: 'center', justifyContent: 'center' },
+  postAvImg: { width: 44, height: 44 },
+  postAvEmoji: { fontSize: 21 },
+  postUser: { fontSize: 15, fontFamily: font.headingBold, color: colors.text },
+  postActivity: { fontSize: 12, fontFamily: font.medium, color: colors.textMuted, marginTop: 1 },
+  friendBadge: { backgroundColor: colors.chipBg, paddingHorizontal: 10, paddingVertical: 4, borderRadius: radius.chip },
+  friendBadgeTxt: { fontSize: 11, fontFamily: font.bold, color: colors.chipText },
+  postLoc: { fontSize: 12, fontFamily: font.medium, color: colors.textMuted, marginBottom: 6 },
+  postCaption: { fontSize: 14, fontFamily: font.regular, color: colors.textSub, lineHeight: 20, marginBottom: 8 },
+  openHint: { fontSize: 13, fontFamily: font.bold, color: colors.brandBlue },
+  postActions: { flexDirection: 'row', alignItems: 'center', gap: 16, marginTop: 2 },
+  actionTxt: { fontSize: 14, fontFamily: font.semibold, color: colors.textSub },
 });
