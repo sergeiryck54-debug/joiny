@@ -1,16 +1,18 @@
 import { Image } from 'expo-image';
+import { LinearGradient } from 'expo-linear-gradient';
 import { router, useFocusEffect } from 'expo-router';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { ActivityIndicator, RefreshControl, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { useI18n } from '../lib/i18n';
 import { supabase } from '../lib/supabase';
-import { colors, font, radius, shadow } from '../lib/theme';
+import { colors, font, gradients, radius, shadow } from '../lib/theme';
 
 const byNewest =(a: any, b: any) => new Date(b.created).getTime() - new Date(a.created).getTime();
 
 export default function FeedScreen() {
   const { t } = useI18n();
   const [items, setItems] = useState<any[]>([]);
+  const [stories, setStories] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [liked, setLiked] = useState<string[]>([]);
@@ -45,6 +47,11 @@ export default function FeedScreen() {
       const friendEvents = evItems.filter(e => e.friend).sort(byNewest);
       const rest = [...evItems.filter(e => !e.friend), ...poItems].sort(byNewest);
       setItems([...friendEvents, ...rest]);
+    } catch (e) {}
+    // Active stories (defensive: never break the feed if the table isn't migrated yet).
+    try {
+      const { data: st } = await supabase.from('stories').select('*').gt('expires_at', new Date().toISOString()).order('created_at', { ascending: false });
+      setStories(st || []);
     } catch (e) {}
   };
 
@@ -163,6 +170,23 @@ export default function FeedScreen() {
       )}
 
       <ScrollView showsVerticalScrollIndicator={false} refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}>
+        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.storiesRow}>
+          <TouchableOpacity style={styles.storyItem} activeOpacity={0.8} onPress={() => router.push('/create-story' as any)}>
+            <View style={styles.storyAdd}><Text style={styles.storyAddPlus}>＋</Text></View>
+            <Text style={styles.storyName}>{t('story.you')}</Text>
+          </TouchableOpacity>
+          {stories.map(s => (
+            <TouchableOpacity key={s.id} style={styles.storyItem} activeOpacity={0.8} onPress={() => router.push(`/story/${s.id}` as any)}>
+              <LinearGradient colors={gradients.brand} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.storyRing}>
+                <View style={styles.storyInner}>
+                  {s.avatar_url ? <Image source={{ uri: s.avatar_url }} style={styles.storyAvImg} contentFit="cover" /> : <Text style={styles.storyEmoji}>{s.emoji || '✨'}</Text>}
+                </View>
+              </LinearGradient>
+              <Text style={styles.storyName} numberOfLines={1}>{s.user_name || '…'}</Text>
+            </TouchableOpacity>
+          ))}
+        </ScrollView>
+
         {items.length === 0 && <Text style={styles.empty}>{t('feed.empty')}</Text>}
         {items.map(item => item.kind === 'event' ? (
           <TouchableOpacity key={'e' + item.id} style={styles.post} activeOpacity={0.7} onPress={() => router.push(`/event/${item.id}` as any)}>
@@ -224,6 +248,15 @@ const styles = StyleSheet.create({
   postBtnOff: { opacity: 0.4 },
   postBtnTxt: { fontSize: 13, fontFamily: font.extrabold, color: '#fff' },
   empty: { textAlign: 'center', fontFamily: font.medium, color: colors.textMuted, marginTop: 40 },
+  storiesRow: { gap: 14, paddingHorizontal: 16, paddingTop: 4, paddingBottom: 12 },
+  storyItem: { alignItems: 'center', gap: 6, width: 64 },
+  storyAdd: { width: 60, height: 60, borderRadius: 30, backgroundColor: colors.surface, borderWidth: 2, borderColor: colors.brandTeal, borderStyle: 'dashed', alignItems: 'center', justifyContent: 'center', ...shadow.card },
+  storyAddPlus: { fontSize: 26, color: colors.brandBlue, marginTop: -2 },
+  storyRing: { width: 62, height: 62, borderRadius: 31, alignItems: 'center', justifyContent: 'center' },
+  storyInner: { width: 54, height: 54, borderRadius: 27, backgroundColor: colors.surface, alignItems: 'center', justifyContent: 'center', overflow: 'hidden' },
+  storyAvImg: { width: 54, height: 54 },
+  storyEmoji: { fontSize: 26 },
+  storyName: { fontSize: 11, fontFamily: font.semibold, color: colors.textSub, maxWidth: 64, textAlign: 'center' },
   post: { backgroundColor: colors.surface, marginHorizontal: 14, marginBottom: 12, borderRadius: radius.card, padding: 14, ...shadow.card },
   postHead: { flexDirection: 'row', alignItems: 'center', gap: 11, marginBottom: 8 },
   postAv: { width: 44, height: 44, borderRadius: 22, alignItems: 'center', justifyContent: 'center' },

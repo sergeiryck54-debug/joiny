@@ -207,6 +207,18 @@ const TR: Record<string, Record<Lang, string>> = {
   'chat.ph': { EN: 'Message…', RU: 'Сообщение…', TH: 'ข้อความ…' },
   'chat.empty': { EN: 'No messages yet — say hi 👋', RU: 'Сообщений пока нет — поздоровайся 👋', TH: 'ยังไม่มีข้อความ — ทักทายกันเลย 👋' },
 
+  // ---- stories ----
+  'story.you': { EN: 'You', RU: 'Вы', TH: 'คุณ' },
+  'story.create': { EN: 'New story', RU: 'Новая история', TH: 'สตอรี่ใหม่' },
+  'story.pickVibe': { EN: 'PICK A VIBE', RU: 'ВЫБЕРИ НАСТРОЕНИЕ', TH: 'เลือกอารมณ์' },
+  'story.titleLabel': { EN: 'WHAT’S UP?', RU: 'ЧТО ПРОИСХОДИТ?', TH: 'มีอะไร?' },
+  'story.titlePh': { EN: 'e.g. Anyone for a morning run?', RU: 'напр. Кто на утренний забег?', TH: 'เช่น ใครไปวิ่งตอนเช้าบ้าง?' },
+  'story.linkEvent': { EN: 'LINK AN EVENT (OPTIONAL)', RU: 'ПРИВЯЗАТЬ СОБЫТИЕ (НЕОБЯЗ.)', TH: 'ลิงก์กิจกรรม (ไม่บังคับ)' },
+  'story.noEvent': { EN: 'No event', RU: 'Без события', TH: 'ไม่มีกิจกรรม' },
+  'story.publish': { EN: '✦ Publish story', RU: '✦ Опубликовать историю', TH: '✦ เผยแพร่สตอรี่' },
+  'story.openEvent': { EN: 'Open event →', RU: 'Открыть событие →', TH: 'เปิดกิจกรรม →' },
+  'story.expires': { EN: 'Stories disappear after 24h', RU: 'Истории исчезают через 24 ч', TH: 'สตอรี่จะหายไปใน 24 ชม.' },
+
   // ---- search ----
   'search.ph': { EN: 'People, events, places', RU: 'Люди, события, места', TH: 'คน กิจกรรม สถานที่' },
   'search.categories': { EN: 'Categories', RU: 'Категории', TH: 'หมวดหมู่' },
