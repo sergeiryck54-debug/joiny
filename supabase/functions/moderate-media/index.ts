@@ -1,6 +1,9 @@
 // Supabase Edge Function: moderate-media
 // Vets an image (or a video's thumbnail frame) before it's published, using
-// Claude's vision API. Returns { approved: boolean, reason: string }.
+// Claude's vision API.
+// Returns { approved: boolean, reason } on a successful check, or
+//         { status: "unavailable", reason } when the check couldn't run
+// (no key / Anthropic error / unparseable verdict) so the client can fail-closed.
 //
 // Deploy:  supabase functions deploy moderate-media
 // Secret:  supabase secrets set ANTHROPIC_API_KEY=sk-ant-...
@@ -31,7 +34,7 @@ Deno.serve(async (req: Request) => {
   try {
     const { image_base64, media_type } = await req.json().catch(() => ({}));
     if (!image_base64) return json({ approved: true, reason: "no image to check" });
-    if (!ANTHROPIC_API_KEY) return json({ approved: true, reason: "moderation not configured" });
+    if (!ANTHROPIC_API_KEY) return json({ status: "unavailable", reason: "moderation not configured" });
 
     const resp = await fetch("https://api.anthropic.com/v1/messages", {
       method: "POST",
@@ -72,7 +75,7 @@ Deno.serve(async (req: Request) => {
 
     if (!resp.ok) {
       console.error("anthropic error", resp.status, await resp.text());
-      return json({ approved: true, reason: "moderation unavailable" }); // fail-open
+      return json({ status: "unavailable", reason: "moderation unavailable" }); // fail-closed
     }
 
     const data = await resp.json();
@@ -81,13 +84,16 @@ Deno.serve(async (req: Request) => {
       .map((b: any) => b.text)
       .join("");
 
-    let verdict: { safe?: boolean; reason?: string } = {};
-    try { verdict = JSON.parse(text); } catch { /* leave empty → treated as safe */ }
+    let verdict: { safe?: boolean; reason?: string } | null = null;
+    try { verdict = JSON.parse(text); } catch { verdict = null; }
 
-    const approved = verdict.safe !== false; // default to allow if the model output is unparseable
-    return json({ approved, reason: verdict.reason || "" });
+    if (!verdict || typeof verdict.safe !== "boolean") {
+      console.error("unparseable verdict:", text);
+      return json({ status: "unavailable", reason: "moderation unavailable" }); // fail-closed
+    }
+    return json({ approved: verdict.safe, reason: verdict.reason || "" });
   } catch (e) {
     console.error("moderate-media error", e);
-    return json({ approved: true, reason: "moderation error" }); // fail-open
+    return json({ status: "unavailable", reason: "moderation error" }); // fail-closed
   }
 });

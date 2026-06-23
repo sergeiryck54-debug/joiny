@@ -232,8 +232,9 @@ export default function CreateScreen() {
         await supabase.from('event_participants').insert({ event_id: ev.id, user_id: user.id });
         if (media.length) {
           try {
-            const { rejected } = await addEventMedia(ev.id, user.id, media);
-            if (rejected > 0) Alert.alert(t('media.rejectedTitle'), t('media.rejected', { n: rejected }));
+            const { rejected, unavailable } = await addEventMedia(ev.id, user.id, media);
+            if (unavailable > 0) Alert.alert(t('media.unavailableTitle'), t('media.unavailable'));
+            else if (rejected > 0) Alert.alert(t('media.rejectedTitle'), t('media.rejected', { n: rejected }));
           } catch (e) {}
         }
       }

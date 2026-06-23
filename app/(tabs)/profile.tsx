@@ -108,7 +108,8 @@ export default function ProfileScreen() {
     setUploadingAvatar(true);
     try {
       const mod = await moderateImageBase64(m.base64);
-      if (!mod.approved) { Alert.alert(t('media.rejectedTitle'), t('media.rejected', { n: 1 })); return; }
+      if (mod.status === 'unavailable') { Alert.alert(t('media.unavailableTitle'), t('media.unavailableShort')); return; }
+      if (mod.status === 'blocked') { Alert.alert(t('media.rejectedTitle'), t('media.rejected', { n: 1 })); return; }
       const url = await uploadJpeg('avatars', `${userId}/avatar.jpg`, m.base64);
       await supabase.from('profiles').upsert({ id: userId, avatar_url: url });
       setAvatarUrl(url);

@@ -99,20 +99,25 @@ export async function captureAvatarImage(): Promise<PickedMedia | null> {
 
 // ---- Moderation ----
 
-export type ModerationResult = { approved: boolean; reason?: string };
+// 'approved' — safe to publish. 'blocked' — flagged as inappropriate.
+// 'unavailable' — the check couldn't run (API down/error) → fail-closed: don't upload.
+export type ModerationStatus = 'approved' | 'blocked' | 'unavailable';
+export type ModerationResult = { status: ModerationStatus; reason?: string };
 
 // Ask the moderate-media Edge Function to vet an image (or a video's frame).
-// Fail-open: if the function is unreachable / not deployed yet, allow the upload
-// so the app keeps working — but a definite "unsafe" verdict blocks publishing.
+// Fail-closed: if the check can't run, return 'unavailable' so the caller skips
+// the upload and tells the user to try again later (vs. a hard 'blocked' verdict).
 export async function moderateImageBase64(base64: string): Promise<ModerationResult> {
-  if (!base64) return { approved: true };
+  if (!base64) return { status: 'approved' }; // nothing to check (e.g. missing video frame)
   try {
     const { data, error } = await supabase.functions.invoke('moderate-media', { body: { image_base64: base64 } });
-    if (error) { console.warn('moderation unavailable:', error.message); return { approved: true }; }
-    return { approved: data?.approved !== false, reason: data?.reason };
+    if (error) { console.warn('moderation unavailable:', error.message); return { status: 'unavailable' }; }
+    if (data?.status === 'unavailable') return { status: 'unavailable', reason: data?.reason };
+    if (data?.approved === false) return { status: 'blocked', reason: data?.reason };
+    return { status: 'approved', reason: data?.reason };
   } catch (e: any) {
     console.warn('moderation error:', e?.message);
-    return { approved: true };
+    return { status: 'unavailable' };
   }
 }
 
@@ -153,21 +158,24 @@ export async function syncCover(eventId: string): Promise<void> {
   await supabase.rpc('set_event_photo', { p_event_id: eventId, p_url: cover });
 }
 
-// Moderate, then upload each media item; append gallery rows and refresh the cover.
-// Returns how many were added vs. rejected by moderation.
-export async function addEventMedia(eventId: string, userId: string, items: PickedMedia[]): Promise<{ added: number; rejected: number }> {
+// Moderate (fail-closed), then upload each approved item; append gallery rows and
+// refresh the cover. Returns counts: added / rejected (inappropriate) /
+// unavailable (moderation couldn't run — nothing uploaded for those).
+export async function addEventMedia(eventId: string, userId: string, items: PickedMedia[]): Promise<{ added: number; rejected: number; unavailable: number }> {
   const { data: last } = await supabase.from('event_photos').select('sort').eq('event_id', eventId).order('sort', { ascending: false }).limit(1);
   let nextSort = last && last.length ? (last[0].sort + 1) : 0;
-  let added = 0, rejected = 0;
+  let added = 0, rejected = 0, unavailable = 0;
+  let serviceDown = false; // once moderation is down, don't keep retrying for every item
   for (const m of items) {
-    const mod = await moderateImageBase64(m.base64);
-    if (!mod.approved) { rejected++; continue; }
+    const mod = serviceDown ? { status: 'unavailable' as const } : await moderateImageBase64(m.base64);
+    if (mod.status === 'unavailable') { serviceDown = true; unavailable++; continue; }
+    if (mod.status === 'blocked') { rejected++; continue; }
     const url = await uploadMedia('event-photos', `${userId}/${eventId}_${nextSort}_${Date.now()}`, m);
     await supabase.from('event_photos').insert({ event_id: eventId, url, sort: nextSort });
     nextSort++; added++;
   }
   await syncCover(eventId);
-  return { added, rejected };
+  return { added, rejected, unavailable };
 }
 
 export async function removeEventPhoto(eventId: string, photoId: string): Promise<void> {

@@ -103,9 +103,10 @@ export default function EditEventScreen() {
     if (!items.length || !userId) return;
     setPhotoBusy(true);
     try {
-      const { rejected } = await addEventMedia(id, userId, items);
+      const { rejected, unavailable } = await addEventMedia(id, userId, items);
       await refreshPhotos();
-      if (rejected > 0) Alert.alert(t('media.rejectedTitle'), t('media.rejected', { n: rejected }));
+      if (unavailable > 0) Alert.alert(t('media.unavailableTitle'), t('media.unavailable'));
+      else if (rejected > 0) Alert.alert(t('media.rejectedTitle'), t('media.rejected', { n: rejected }));
     } catch (e) {
       Alert.alert(t('ev.photoFail'), t('common.tryAgain'));
     } finally {
